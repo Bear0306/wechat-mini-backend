@@ -20,21 +20,24 @@ router.post("/login", async (req, res) => {
     let unionid: string | undefined;
 
     // DevTool Emulator: mock openid from code
-    openid = `mock_${code}`;
-    unionid = undefined;
-
-    // // Real WeChat(PC, Phone)
-    // const session = await code2Session(code);
-    // openid = session.openid;
-    // unionid = session.unionid;
+    if (process.env.NODE_ENV == "development"){
+      openid = `mock_${code}`;
+      unionid = undefined;
+    }
+    // Real WeChat(PC, Phone)
+    else {
+      const session = await code2Session(code);
+      openid = session.openid;
+      unionid = session.unionid;
+    }
 
     // Ensure user exists
     const user = await upsertUserByOpenid(openid, unionid);
 
     // DevTool Emulator: Force userId = 5 in development BEFORE signing
-    const userId = process.env.NODE_ENV === "production" ? user.id : 5;
-    // // Real WeChat(PC, Phone)    
+    // Real WeChat(PC, Phone)    
     // const userId = user.id;
+    const userId = process.env.NODE_ENV === "development" ? 5 : user.id;
 
     const token = sign(userId, openid);
     return res.json({ token, openid });
