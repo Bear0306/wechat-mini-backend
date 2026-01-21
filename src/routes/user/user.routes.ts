@@ -6,7 +6,7 @@ import { reverseGeocodeCity } from "../../adapters/maps";
 import { cityOnlyName } from "../../utils/location";
 import { prisma } from "../../db";
 import dayjs from "dayjs";
-import { decryptWeRun } from '../../adapters/wechat';
+import { code2Session, decryptWeRun } from '../../adapters/wechat';
 const router = Router();
 
 function sumAvail(items: { qty: number; consumedQty: number; expiresAt: Date | null }[]) {
@@ -194,15 +194,18 @@ router.get('/me/quota-stats', async (req, res) => {
 router.post('/werun/decrypt', async (req, res) => {
   try {
     const userId = Number(req.user?.id);
-    const { encryptedData, iv, sessionKey } = req.body;
+    const { encryptedData, iv, code } = req.body;
 
     if (!userId) {
       return res.status(401).json({ ok: false, error: 'Unauthorized' });
     }
 
-    if (!encryptedData || !iv || !sessionKey) {
+    if (!encryptedData || !iv || !code) {
       return res.status(400).json({ ok: false, error: 'Missing params' });
     }
+
+    const wxRes = await code2Session(code);
+    const sessionKey = wxRes.session_key;
 
     const data = decryptWeRun(encryptedData, sessionKey, iv);
 
