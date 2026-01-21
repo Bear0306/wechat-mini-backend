@@ -195,6 +195,7 @@ router.post('/werun/decrypt', async (req, res) => {
   try {
     const userId = Number(req.user?.id);
     const { encryptedData, iv, code } = req.body;
+    console.log('WeRun decrypt request for userId:', encryptedData);
 
     if (!userId) {
       return res.status(401).json({ ok: false, error: 'Unauthorized' });
