@@ -1,0 +1,44 @@
+{
+    "name": "sport-competition-backend",
+    "version": "1.0.0",
+    "main": "dist/app.js",
+    "scripts": {
+        "dev": "nodemon --watch src -e ts --exec \"npx ts-node src/app.ts\"",
+        "build": "tsc",
+        "start": "node dist/app.js",
+        "prisma:gen": "prisma generate",
+        "prisma:push": "prisma db push",
+        "seed": "ts-node prisma/seed",
+        "prisma:migrate": "prisma migrate dev",
+        "prisma:deploy": "prisma migrate deploy",
+        "set-admin": "npx ts-node scripts/set-admin.ts"
+    },
+    "dependencies": {
+        "@prisma/client": "^6.18.0",
+        "argon2": "^0.44.0",
+        "axios": "^1.7.2",
+        "cors": "^2.8.5",
+        "dayjs": "^1.11.18",
+        "dotenv": "^17.2.3",
+        "express": "^5.1.0",
+        "helmet": "^8.1.0",
+        "ioredis": "^5.8.2",
+        "jsonwebtoken": "^9.0.2",
+        "luxon": "^3.7.2",
+        "morgan": "^1.10.1",
+        "node-cron": "^4.2.1",
+        "zod": "^4.1.12"
+    },
+    "devDependencies": {
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.3",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/luxon": "^3.7.1",
+        "@types/morgan": "^1.9.10",
+        "@types/node": "^24.9.1",
+        "nodemon": "^3.1.0",
+        "prisma": "^6.18.0",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.3"
+    }
+}
