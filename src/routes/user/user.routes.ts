@@ -206,6 +206,7 @@ router.post('/werun/decrypt', async (req, res) => {
 
     const wxRes = await code2Session(code);
     const sessionKey = wxRes.session_key;
+    console.log('WeRun decrypt sessionKey:', sessionKey);
 
     const data = decryptWeRun(encryptedData, sessionKey, iv);
 
