@@ -3,13 +3,13 @@ import { DateTime } from 'luxon';
 export type Scope = 'day' | 'week' | 'month';
 
 // 判断当前时间是否在 上午 6 点到晚上 8 点之间，如果在，则允许统计运动数据。
-export function isWithinValidCollectWindow(now = DateTime.local().setZone(process.env.TZ||'Asia/Shanghai')){
+export function isWithinValidCollectWindow(now = DateTime.local().setZone(process.env.TZ1||'Asia/Shanghai')){
     const h = now.hour;
     return h >= 6 && h < 20;
 }
 
 // 判断当前时间是否在 晚上 10 点到次日早上 6 点之间，如果在，则视为夜间休眠时间，不统计运动数据。
-export function isNightQuiet(now = DateTime.local().setZone(process.env.TZ||'Asia/Shanghai')){
+export function isNightQuiet(now = DateTime.local().setZone(process.env.TZ1||'Asia/Shanghai')){
     const h = now.hour;
     return h >= 22 || h < 6;
 }
