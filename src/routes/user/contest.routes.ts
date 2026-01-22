@@ -138,6 +138,25 @@ router.post('/participate', async (req, res) => {
     select: { id: true, contestId: true },
   });
 
+  // 1️⃣ Fetch the current user first
+  const user = await prisma.user.findUnique({
+    where: { id: uid },
+    select: { leftChallenge: true },
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // 2️⃣ Calculate new value, never below 0
+  const newLeftChallenge = Math.max(0, user.leftChallenge - 1);
+
+  // 3️⃣ Update the user
+  await prisma.user.update({
+    where: { id: uid },
+    data: { leftChallenge: newLeftChallenge },
+  });
+
   return res.json({ ok: true, entryId: entry.id, contestId: entry.contestId });
 });
 

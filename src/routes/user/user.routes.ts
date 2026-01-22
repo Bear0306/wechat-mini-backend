@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireUser } from "../../middlewares/auth";
 import { updateUserProfile } from "../../services/user.service";
+import { upsertUserSteps } from "../../services/user.service";
 import { reverseGeocodeCity } from "../../adapters/maps";
 import { cityOnlyName } from "../../utils/location";
 import { prisma } from "../../db";
@@ -195,7 +196,6 @@ router.post('/werun/decrypt', async (req, res) => {
   try {
     const userId = Number(req.user?.id);
     const { encryptedData, iv, code } = req.body;
-    console.log('WeRun decrypt request for userId:', encryptedData);
 
     if (!userId) {
       return res.status(401).json({ ok: false, error: 'Unauthorized' });
@@ -207,10 +207,13 @@ router.post('/werun/decrypt', async (req, res) => {
 
     const wxRes = await code2Session(code);
     const sessionKey = wxRes.session_key;
-    console.log('WeRun decrypt sessionKey:', sessionKey);
 
     const data = decryptWeRun(encryptedData, sessionKey, iv);
 
+    const last6days = data.stepInfoList.slice(-6) ?? [];
+    if (last6days.length > 0) {
+      await upsertUserSteps(userId, last6days);
+    }
     // Minimal shape your frontend expects
     return res.json({
       werun: {

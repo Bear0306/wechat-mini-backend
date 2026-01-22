@@ -37,7 +37,7 @@ model User {
   updatedAt        DateTime  @updatedAt
 
   membership          Membership?
-  referralCodes   ReferralCode[]  @relation("referralcode")
+  referralCodes       ReferralCode[]  @relation("referralcode")
   referralsMade       Referral[]          @relation("referrer")
   referralsGot        Referral[]          @relation("referee")
   entries             ContestEntry[]
@@ -47,6 +47,7 @@ model User {
   adRewards           AdReward[]
   membershipHistories MembershipHistory[] // back relation for MembershipHistory.
   doubleCredits       DoubleCredit[]
+  userSteps           UserSteps?
 }
 
 model UserConsent {
@@ -58,6 +59,15 @@ model UserConsent {
   user       User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([userId, policyType])
+}
+
+model UserSteps {
+  id            Int           @id @default(autoincrement())
+  userId        Int           @unique
+  stepInfoList  String?        @db.LongText
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([userId])
 }
 
 enum ConsentPolicy {
