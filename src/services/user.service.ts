@@ -58,12 +58,14 @@ export async function upsertUserSteps(
   userId: number,
   newStepInfoList: StepInfo[]
 ) {
+  console.log('Upserting steps for user:', userId)
+  console.log('New step info list:', newStepInfoList)
 
   const SECONDS_PER_DAY = 86400
   const DAYS = 35
 
   // Use timezone from env or default to Asia/Shanghai
-  const tz = process.env.TZ || 'Asia/Shanghai'
+  const tz = process.env.TZ1 || 'Asia/Shanghai'
 
   // Today at 00:00 in the desired timezone
   const today = DateTime.local().setZone(tz).startOf('day')
