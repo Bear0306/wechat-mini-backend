@@ -58,9 +58,6 @@ export async function upsertUserSteps(
   userId: number,
   newStepInfoList: StepInfo[]
 ) {
-  console.log('Upserting steps for user:', userId)
-  console.log('New step info list:', newStepInfoList)
-
   const SECONDS_PER_DAY = 86400
   const DAYS = 35
 
@@ -88,8 +85,6 @@ export async function upsertUserSteps(
   } else {
     combinedSteps = [...newStepInfoList]
   }
-
-  console.log('Combined step info list before deduplication and filtering:', combinedSteps)
 
   // Deduplicate by timestamp (keep latest from newStepInfoList)
   const stepMap = new Map<number, StepInfo>()
