@@ -89,6 +89,8 @@ export async function upsertUserSteps(
     combinedSteps = [...newStepInfoList]
   }
 
+  console.log('Combined step info list before deduplication and filtering:', combinedSteps)
+
   // Deduplicate by timestamp (keep latest from newStepInfoList)
   const stepMap = new Map<number, StepInfo>()
   combinedSteps.forEach(step => stepMap.set(step.timestamp, step))
