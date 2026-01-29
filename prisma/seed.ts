@@ -26,7 +26,7 @@ function statusForRange(startAt: Date, endAt: Date): ContestStatus {
   const now = new Date();
   if (now < startAt) return ContestStatus.SCHEDULED;
   if (now > endAt) return ContestStatus.FINALIZED;
-  return ContestStatus.ACTIVE;
+  return ContestStatus.ONGOING;
 }
 
 async function main() {
@@ -46,7 +46,6 @@ async function main() {
     prisma.entryCredit.deleteMany(),
     prisma.referral.deleteMany(),
     prisma.contest.deleteMany(),
-    prisma.prize.deleteMany(),
     prisma.region.deleteMany(),
     prisma.userConsent.deleteMany(),
     prisma.user.deleteMany(),
@@ -63,13 +62,6 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // ---------- prizes ----------
-  const situp = await prisma.prize.create({
-    data: { title: '仰卧起坐辅助器', valueCents: 3599, category: 'GEAR', isMinorSafe: true },
-  });
-  const book = await prisma.prize.create({
-    data: { title: '运动解剖学（书籍）', valueCents: 2999, category: 'BOOKS', isMinorSafe: true },
-  });
 
   // ---------- app settings / providers ----------
   await prisma.appSetting.create({
@@ -121,7 +113,7 @@ async function main() {
   await prisma.membership.create({
     data: {
       userId: users[4].id,
-      tier: MembershipTier.VIP,
+      tier: MembershipTier.BRONZE,
       startAt: at(-10, 0),
       endAt: at(20, 0),
       monthlyQuota: 20,
@@ -156,18 +148,18 @@ async function main() {
     });
 
   // ended daily (yesterday)
-  const cDaily1 = await makeContest('＊日赛 1', at(-1, 6), at(-1, 20), ContestFreq.DAILY);
+  const cDaily1 = await makeContest('＊日赛 1', at(-1, 0), at(-1, 23), ContestFreq.DAILY);
   // ended daily (2 days ago)
-  const cDaily2 = await makeContest('＊日赛 2', at(-2, 6), at(-2, 20), ContestFreq.DAILY);
+  const cDaily2 = await makeContest('＊日赛 2', at(-2, 0), at(-2, 23), ContestFreq.DAILY);
   // ended weekly (last week Mon 6:00 to Sun 20:00)
   const today = new Date();
   const dow = today.getDay() || 7; // Mon=1..Sun=7
-  const lastMon6 = at(-(dow + 6), 6);
-  const lastSun20 = at(-dow, 20);
+  const lastMon6 = at(-(dow + 6), 0);
+  const lastSun20 = at(-dow, 23);
   const cWeek1 = await makeContest('＊周赛', lastMon6, lastSun20, ContestFreq.WEEKLY);
 
   // ongoing daily (today 6–20)
-  const cDailyNow = await makeContest('＊日赛（进行中）', at(0, 6), at(0, 20), ContestFreq.DAILY);
+  const cDailyNow = await makeContest('＊日赛（进行中）', at(0, 0), at(0, 23), ContestFreq.DAILY);
 
   // ---------- entries ----------
   async function seedEntries(contestId: number, biasUserId?: number, biasSteps?: number) {
@@ -181,16 +173,6 @@ async function main() {
           steps,
           distanceM: Math.floor(steps * 0.6),
           provider: DataProvider.WECHAT_SPORTS,
-          providerRef: null,
-          sampleStartAt: (await prisma.contest.findUnique({ where: { id: contestId } }))!.startAt,
-          sampleEndAt: (await prisma.contest.findUnique({ where: { id: contestId } }))!.endAt,
-          dataHash: null,
-          verified: true,
-          status: EntryStatus.VERIFIED,
-          livenessOk: u.id % 5 !== 0,
-          livenessAt: at(0, 12),
-          multiplierX: u.id % 7 === 0 ? 2 : 1,
-          fundedByCreditId: null,
           notes: null,
         },
       });
@@ -213,7 +195,7 @@ async function main() {
   // ---------- helper: top ranks ----------
   const topRanks = async (contestId: number, take: number) =>
     prisma.contestEntry.findMany({
-      where: { contestId, verified: true },
+      where: { contestId },
       select: { userId: true, steps: true },
       orderBy: { steps: 'desc' },
       take,
@@ -227,11 +209,10 @@ async function main() {
       data: {
         contestId: cWeek1.id,
         userId: wTop3[0].userId,
-        prizeId: situp.id,
+        prizeValueCent: 100,
         rank: 1,
         steps: wTop3[0].steps,
         status: PrizeClaimStatus.SHIPPED,
-        waybillNo: 'SF4719755091224633552',
       },
     });
   if (wTop3[1])
@@ -239,12 +220,10 @@ async function main() {
       data: {
         contestId: cWeek1.id,
         userId: wTop3[1].userId,
-        prizeId: book.id,
+        prizeValueCent: 100,
         rank: 2,
         steps: wTop3[1].steps,
         status: PrizeClaimStatus.SUBMITTED,
-        orderNo: 'TB202409150001',
-        taobaoLink: 'https://tb.example.com/your-link',
       },
     });
   if (wTop3[2])
@@ -252,7 +231,7 @@ async function main() {
       data: {
         contestId: cWeek1.id,
         userId: wTop3[2].userId,
-        prizeId: null,
+        prizeValueCent: 100,
         rank: 3,
         steps: wTop3[2].steps,
         status: PrizeClaimStatus.PENDING_INFO,
@@ -265,7 +244,7 @@ async function main() {
   });
   if (myD1) {
     const better = await prisma.contestEntry.count({
-      where: { contestId: cDaily1.id, verified: true, steps: { gt: myD1.steps } },
+      where: { contestId: cDaily1.id, steps: { gt: myD1.steps } },
     });
     const rank = better + 1;
     if (rank > 10) {

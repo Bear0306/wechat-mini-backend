@@ -32,7 +32,8 @@ model User {
   canParticipate   Boolean   @default(true)
   canBuyMembership Boolean   @default(true)
   city             String?
-  leftChallenge Int    @default(3) @db.UnsignedInt
+  joinCount        Int    @default(3) @db.UnsignedInt
+  prizeMultiplier  Int    @default(1) @db.UnsignedInt
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -123,7 +124,6 @@ model EntryCredit {
 
   // back-relations
   adRewards     AdReward[]     @relation("AdRewardCredit") // 👈 opposite of AdReward.credit
-  fundedEntries ContestEntry[] @relation("EntryFundCredit") // 👈 opposite of ContestEntry.fundedByCredit
 
   @@index([userId, source])
 }
@@ -168,8 +168,9 @@ model MembershipHistory {
 
 enum MembershipTier {
   NONE
-  VIP
-  VIP_PLUS
+  BRONZE
+  SILVER
+  GOLD
 }
 
 model AdReward {
@@ -252,7 +253,7 @@ enum ContestAudience {
 
 enum ContestStatus {
   SCHEDULED
-  ACTIVE
+  ONGOING
   FINALIZING
   FINALIZED
   CANCELED
@@ -265,23 +266,12 @@ model ContestEntry {
   steps            Int          @default(0)
   distanceM        Int          @default(0)
   provider         DataProvider @default(WECHAT_SPORTS)
-  providerRef      String?
-  sampleStartAt    DateTime?
-  sampleEndAt      DateTime?
-  dataHash         String?
-  verified         Boolean      @default(false)
-  status           EntryStatus  @default(PENDING)
   submittedAt      DateTime     @default(now())
-  livenessOk       Boolean      @default(false)
-  livenessAt       DateTime?
-  multiplierX      Int          @default(1)
-  fundedByCreditId Int?
   notes            String?
 
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   contest        Contest      @relation(fields: [contestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  fundedByCredit EntryCredit? @relation("EntryFundCredit", fields: [fundedByCreditId], references: [id], onDelete: SetNull, onUpdate: Cascade) // 👈 named
-
+  
   @@unique([userId, contestId])
   @@index([contestId, steps])
   @@index([contestId, distanceM])
@@ -315,28 +305,6 @@ model Leaderboard {
   @@index([finalizedAt])
 }
 
-model Prize {
-  id          Int           @id @default(autoincrement())
-  title       String
-  valueCents  Int
-  category    PrizeCategory
-  isMinorSafe Boolean       @default(true)
-  imageUrl    String?
-  stock       Int?
-  createdAt   DateTime      @default(now())
-
-  claims ContestPrizeClaim[]
-  rules  ContestPrizeRule[]
-}
-
-enum PrizeCategory {
-  BOOKS
-  STATIONERY
-  GEAR
-  VOUCHER
-  OTHER
-}
-
 enum PrizeClaimStatus {
   PENDING_INFO
   SUBMITTED
@@ -351,42 +319,31 @@ model ContestPrizeRule {
   contestId Int
   rankStart Int
   rankEnd   Int
-  prizeId   Int
+  prizeValueCent   Int
 
   audience ContestAudience? // only for specific audience type (ADULTS/YOUTH)
 
   contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
-  prize   Prize   @relation(fields: [prizeId], references: [id], onDelete: Restrict)
 
   @@index([contestId, rankStart, rankEnd])
-  @@index([prizeId])
 }
 
 model ContestPrizeClaim {
   id                  Int              @id @default(autoincrement())
   contestId           Int
   userId              Int
-  prizeId             Int?
-  prizeTitleSnap      String?
-  prizeImageUrlSnap   String?
-  prizeValueCentsSnap Int?
   rank                Int
   steps               Int
+  prizeValueCent      Int?
+  csWechatId          String?
   status              PrizeClaimStatus @default(PENDING_INFO)
-
-  orderNo    String?
-  taobaoLink String?
-  useDouble  Boolean @default(false)
-
-  waybillNo String?
-  note      String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  useMultiple         Boolean @default(false)
+  note                String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  prize   Prize?  @relation(fields: [prizeId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@unique([contestId, userId]) // -> where: { contestId_userId: { … } }
   @@index([userId, status])

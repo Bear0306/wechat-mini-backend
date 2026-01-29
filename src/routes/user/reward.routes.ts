@@ -9,13 +9,13 @@ const router = Router();
 // Helper: compute my rank inside a contest
 async function computeRank(contestId: number, userId: number) {
   const me = await prisma.contestEntry.findFirst({
-    where: { contestId, userId, verified: true },
+    where: { contestId, userId},
     select: { steps: true }
   });
   if (!me) return { rank: null, steps: 0 };
 
   const better = await prisma.contestEntry.count({
-    where: { contestId, verified: true, steps: { gt: me.steps } }
+    where: { contestId, steps: { gt: me.steps } }
   });
   return { rank: better + 1, steps: me.steps };
 }
@@ -23,7 +23,7 @@ async function computeRank(contestId: number, userId: number) {
 /**
  * POST /claim/start
  * body: { contestId }
- * -> creates claim (idempotent via @@unique) if eligible; returns { claimId, rank, status, waybillNo?, stateHint? }
+ * -> creates claim (idempotent via @@unique) if eligible; returns { claimId, rank, status, stateHint? }
  */
 router.post('/start', /*auth,*/ async (req: any, res) => {
   const body = z.object({ contestId: z.number().int().positive() }).safeParse(req.body);
@@ -65,7 +65,6 @@ router.post('/start', /*auth,*/ async (req: any, res) => {
     claimId: claim.id,
     rank: claim.rank,
     status: claim.status,
-    waybillNo: claim.waybillNo ?? null,
     stateHint: claim.status === 'SHIPPED' ? '静待' : null
   });
 });
@@ -105,7 +104,6 @@ router.get('/detail', /*auth,*/ async (req: any, res) => {
       where: { id: q.data.claimId },
       include: {
         contest: { select: { title: true } },
-        prize:   { select: { title: true, valueCents: true } } // schema has no imageUrl
       }
     });
   } else if (q.data.contestId) {
@@ -113,7 +111,6 @@ router.get('/detail', /*auth,*/ async (req: any, res) => {
       where: { contestId: q.data.contestId, userId: uid },
       include: {
         contest: { select: { title: true } },
-        prize:   { select: { title: true, valueCents: true } }
       }
     });
   } else {
@@ -122,10 +119,7 @@ router.get('/detail', /*auth,*/ async (req: any, res) => {
 
   if (!claim || claim.userId !== uid) return res.status(404).json({ message: '未找到' });
 
-  const prizeTitle = claim.prize?.title ?? '奖品';
   const imageUrl   = '';
-  const valueCents = claim.prize?.valueCents ?? null;
-
   const csWeChatId = process.env.CS_WECHAT_ID || '15786424201';
 
   const stateHint = (() => {
@@ -138,7 +132,6 @@ router.get('/detail', /*auth,*/ async (req: any, res) => {
       default:                          return '';
     }
   })();
-  console.log('Resolved claim detail:', prizeTitle);
 
   res.json({
     claimId: claim.id,
@@ -146,100 +139,12 @@ router.get('/detail', /*auth,*/ async (req: any, res) => {
     title: claim.contest.title,   // 赛事标题（前端当前用到：d.title）
     rank: claim.rank,
     status: claim.status,
-    prizeTitle,                   // 可用于 modal 的 prizeTitle
     imageUrl,                     // 奖品图
-    valueCents,                   // 如需展示“价值”
-    taobaoLink: claim.taobaoLink ?? '',
-    orderNo: claim.orderNo ?? '',
-    waybillNo: claim.waybillNo ?? '',
     csWeChatId,                   // 客服微信（如需）
     stateHint                     // 文案：静待/待发货/已提交/...
   });
 });
 
-/**
- * POST /claim/self-service
- * body: { claimId, orderNo, taobaoLink?, useDouble? }
- */
-router.post('/self-service', /*auth,*/ async (req: any, res) => {
-  const body = z.object({
-    claimId: z.number().int().positive(),
-    orderNo: z.string().min(6).max(64),
-    taobaoLink: z.string().url().optional(),
-    useDouble: z.boolean().optional()
-  }).safeParse(req.body);
-
-  if (!body.success) return res.status(400).json({ message: '参数错误' });
-  const { claimId, orderNo, taobaoLink, useDouble } = body.data;
-
-  const uid = Number(req.user?.id);
-
-  const claim = await prisma.contestPrizeClaim.findUnique({ where: { id: claimId } });
-  if (!claim || claim.userId !== uid) return res.status(404).json({ message: '未找到' });
-
-  // 如需翻倍，检查翻倍库存
-  if (useDouble) {
-    const doubles = await prisma.doubleCredit.findMany({ where: { userId: uid }});
-    const avail = doubles.reduce((a,b)=> a + Math.max(0, b.qty - b.consumedQty), 0);
-    if (avail <= 0) return res.status(400).json({ message: '翻倍次数不足' });
-  }
-  
-  // only allow when pending/submitted
-  if (!['PENDING_INFO', 'SUBMITTED', 'REJECTED'].includes(claim.status)) {
-    return res.status(400).json({ message: '当前状态不可提交' });
-  }
-
-  // TODO: if you have referral double-check, validate here before honoring useDouble
-  // const updated = await prisma.contestPrizeClaim.update({
-  //   where: { id: claimId },
-  //   data: {
-  //     orderNo,
-  //     taobaoLink: taobaoLink ?? claim.taobaoLink,
-  //     useDouble: useDouble ?? claim.useDouble,
-  //     status: 'SUBMITTED'
-  //   }
-  // });
-
-  await prisma.contestPrizeClaim.update({
-    where: { id: claimId },
-    data: { 
-      status: 'SUBMITTED', 
-      orderNo, 
-      taobaoLink: taobaoLink ?? claim.taobaoLink,
-      useDouble 
-    }
-  });
-
-  // 2) 消耗一次翻倍
-  if (useDouble) {
-    const bucket = await prisma.doubleCredit.findFirst({
-      where: {
-        userId: uid,
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: new Date() } }
-        ]
-      },
-      orderBy: { id: 'asc' },
-      take: 20
-    });
-
-    const usable = bucket && bucket.consumedQty < bucket.qty;
-    if (!usable) throw new Error('no_double_credit');
-
-    await prisma.doubleCredit.update({
-      where: { id: bucket.id },
-      data: { consumedQty: { increment: 1 } }
-    });
-  }
-
-  return res.json({
-    // claimId: updated.id,
-    // status: updated.status,
-    // stateHint: '已提交'
-    ok: true
-  });
-});
 
 /* =================== OPTIONAL: admin endpoints =================== */
 
@@ -263,20 +168,19 @@ router.post('/admin/verify', async (req, res) => {
   res.json({ claimId: updated.id, status: updated.status });
 });
 
-/** POST /claim/admin/ship { claimId, waybillNo } */
+/** POST /claim/admin/ship { claimId } */
 router.post('/admin/ship', async (req, res) => {
   const body = z.object({
     claimId: z.number().int().positive(),
-    waybillNo: z.string().min(6).max(64)
   }).safeParse(req.body);
   if (!body.success) return res.status(400).json({ message: '参数错误' });
 
   const updated = await prisma.contestPrizeClaim.update({
     where: { id: body.data.claimId },
-    data: { waybillNo: body.data.waybillNo, status: 'SHIPPED' }
+    data: { status: 'SHIPPED' }
   });
 
-  res.json({ claimId: updated.id, status: updated.status, waybillNo: updated.waybillNo });
+  res.json({ claimId: updated.id, status: updated.status });
 });
 
 export default router;

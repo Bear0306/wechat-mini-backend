@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import { env } from './env';
 
 import authRoutes from './routes/user/auth.routes';
-import userRoutes from './routes/user/user.routes';
+import meRoutes from './routes/user/me.routes';
 import contestRoutes from './routes/user/contest.routes';
 import leaderboardRoutes from './routes/user/leaderboard.routes';
 import referralRoutes from './routes/user/referral.routes';
@@ -14,6 +14,7 @@ import rewardRoutes from './routes/user/reward.routes';
 // import quotaRoutes from './routes/quota.routes';
 
 import './jobs/finalizeLeaderboards';
+import './jobs/updateContestStatus';
 import { rateLimit } from './middlewares/rateLimit';
 
 // ⬇️ Keep your existing auth.ts exactly; we import its userAuth.
@@ -47,7 +48,7 @@ app.get('/api/health', (_req, res) =>
 
 // -------- USER APIs (require your existing userAuth) --------
 app.use('/api/auth', rateLimit('auth', 30, 60), authRoutes);
-app.use('/api/user',    userAuth, rateLimit('user', 120, 60), userRoutes);
+app.use('/api/me',    userAuth, rateLimit('user', 120, 60), meRoutes);
 app.use('/api/contest', userAuth, rateLimit('contest', 120, 60), contestRoutes);
 app.use('/api/leaderboard', userAuth, rateLimit('board', 120, 60), leaderboardRoutes);
 app.use('/api/referral',    userAuth, rateLimit('ref', 60, 60), referralRoutes);

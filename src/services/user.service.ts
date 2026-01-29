@@ -1,63 +1,28 @@
 import { DateTime } from 'luxon';
-import { prisma } from '../db';
-import { AgeGroup } from '@prisma/client';
-
-export async function getUserById(id: number) {
-  return prisma.user.findUnique({ where: { id } });
-}
-
-export async function getUserByOpenId(openid: string) {
-  return prisma.user.findUnique({ where: { openid } });
-}
-
-export async function upsertUserByOpenid(openid: string, unionid?: string) {
-  return prisma.user.upsert({
-    where: { openid },
-    update: { unionid },
-    create: {
-      openid,
-      unionid,
-      wechatNick: '新用户',
-      ageGroup: AgeGroup.ADULT,
-      canParticipate: true,
-      canBuyMembership: true,
-      city: '未知',
-      leftChallenge: 3
-    },
-  });
-}
-
-export async function updateUserProfile(
-  id: number,
-  data: {
-    phone?: string;               // plain phone from client
-    wechatNick?: string;
-    avatarUrl?: string;
-    city?: string;
-    realNameVerified?: boolean;
-    birthDate?: Date;
-  }
-) {
-  const { phone, ...rest } = data;
-  return prisma.user.update({
-    where: { id },
-    data: {
-      ...rest,
-      // TODO: replace with AES later
-      phoneEnc: phone ?? undefined,
-    },
-  });
-}
+import { code2Session, decryptWeRun } from "../adapters/wechat";
+import * as UserModel from '../models/user.model';
+import * as UserStepsModel from '../models/usersteps.model';
+import * as ContestModel from '../models/contest.model';
+import * as ContestentryModel from '../models/contestentry.model';
 
 type StepInfo = {
   timestamp: number
   step: number
 }
 
-export async function upsertUserSteps(
-  userId: number,
-  newStepInfoList: StepInfo[]
-) {
+export async function getUserById(id: number) {
+  return UserModel.getUserById(id);
+}
+
+export async function getUserByOpenId(openid: string) {
+  return UserModel.getUserByOpenId(openid);
+}
+
+export async function upsertUserByOpenid(openid: string, unionid?: string) {
+  return UserModel.upsertUserByOpenid(openid, unionid);
+}
+
+export async function upsertUserSteps( userId: number, newStepInfoList: StepInfo[] ) {
   const SECONDS_PER_DAY = 86400
   const DAYS = 35
 
@@ -69,15 +34,13 @@ export async function upsertUserSteps(
   const cutoffTimestamp = today.toSeconds() - DAYS * SECONDS_PER_DAY
 
   // Read existing steps from DB
-  const existing = await prisma.userSteps.findUnique({
-    where: { userId },
-  })
+  const userStepList = await UserStepsModel.getUserStepsList(userId);
 
   let combinedSteps: StepInfo[] = []
 
-  if (existing?.stepInfoList) {
+  if (userStepList.length > 0) {
     try {
-      const existingSteps: StepInfo[] = JSON.parse(existing.stepInfoList)
+      const existingSteps: StepInfo[] = userStepList
       combinedSteps = [...existingSteps, ...newStepInfoList]
     } catch {
       combinedSteps = [...newStepInfoList]
@@ -96,21 +59,7 @@ export async function upsertUserSteps(
     .filter(item => item.timestamp >= cutoffTimestamp)
     .sort((a, b) => a.timestamp - b.timestamp)
 
-  const contests = await prisma.contest.findMany({
-    where: { status: 'ACTIVE' },
-    select: {
-      id: true,
-      startAt: true,
-      endAt: true,
-      entries: {
-        select: {
-          id: true,
-          userId: true,
-          contestId: true,
-        },
-      },
-    },
-  })
+  const contests = await ContestModel.getOngoingContestEntries();
 
   // Flatten Contest -> entries into your desired structure
   const flattened = contests.flatMap(contest =>
@@ -129,7 +78,7 @@ export async function upsertUserSteps(
   const result = filteredRows.map(contest => {
     const startTs = Math.floor(contest.startAt.getTime() / 1000);
     const endTs = Math.floor(contest.endAt.getTime() / 1000);
-
+    
     const totalSteps = filteredSteps
       .filter(step => step.timestamp >= startTs && step.timestamp < endTs)
       .reduce((sum, step) => sum + step.step, 0);
@@ -137,18 +86,79 @@ export async function upsertUserSteps(
     return { ...contest, steps: totalSteps };
   });
 
-  for (const contest of result) {
-    await prisma.contestEntry.update({
-      where: { id: contest.entryId },
-      data: { steps: contest.steps },
-    });
-  }
-  
 
-  // Upsert into DB
-  return prisma.userSteps.upsert({
-    where: { userId },
-    update: { stepInfoList: JSON.stringify(filteredSteps) },
-    create: { userId, stepInfoList: JSON.stringify(filteredSteps) },
-  })
+  for (const contest of result) {
+    await ContestentryModel.upsertUserSteps(contest.entryId, contest.steps);
+  }
+
+  UserStepsModel.upsertUserStepsList(userId, filteredSteps);
+}
+
+export async function decUserJoinCount(userId: number) {
+    const cur_count = await UserModel.getUserJoinCount(userId);
+    if (!cur_count || cur_count <= 0) {
+      throw { status: 404, message: '找不到用户' };
+    }
+    const new_count = Math.max(0, cur_count - 1);
+    // 3️⃣ Update the user
+    await UserModel.updateUserJoinCount(userId, new_count);
+}
+
+export async function getUserInfo(uid: number) {
+  const user = await UserModel.findUserBasic(uid);
+  if (!user) throw new Error("用户不存在");
+
+  const tz = process.env.TZ1 || "Asia/Shanghai";
+  const weekStart = DateTime.local().setZone(tz).startOf("week").toSeconds();
+
+  const steps = await UserStepsModel.getUserStepsList(uid);
+  const list = steps ?? [];
+
+  const weekSteps = list
+    .filter(i => i.timestamp >= weekStart)
+    .reduce((sum, i) => sum + i.step, 0);
+
+  return {
+    uid: user.id,
+    nickname: user.wechatNick || "我的昵称",
+    weekSteps,
+    joinCount: user.joinCount,
+    prizeMultiplier: user.prizeMultiplier,
+  };
+}
+
+export async function getUserCount(uid: number) {
+  const user = await UserModel.findUserCount(uid);
+  if (!user) throw new Error("用户不存在");
+
+  return user;
+}
+
+export async function uploadSteps(params: {
+  userId: number;
+  encryptedData: string;
+  iv: string;
+  code: string;
+}) {
+  const { userId, encryptedData, iv, code } = params;
+
+  const wxRes = await code2Session(code);
+  const sessionKey = wxRes.session_key;
+
+  const data = decryptWeRun(encryptedData, sessionKey, iv);
+
+  const stepInfoList = [...data.stepInfoList];
+  while (stepInfoList.length && stepInfoList[0].step === 0) {
+    stepInfoList.shift();
+  }
+
+  if (stepInfoList.length) {
+    await UserStepsModel.upsertUserStepsList(userId, stepInfoList);
+  }
+
+  return {
+    werun: {
+      stepInfoList: data.stepInfoList ?? [],
+    },
+  };
 }

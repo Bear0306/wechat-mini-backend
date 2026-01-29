@@ -86,7 +86,7 @@ export async function getMyRank(
   // });
 
   const entries = await prisma.contestEntry.findMany({
-    where: { contestId, verified: true },
+    where: { contestId },
     select: {
       userId: true, steps: true,
       user: { select: { wechatNick: true, avatarUrl: true } }
@@ -118,7 +118,7 @@ export async function getSnapshot(
 
   if (typeof userId === 'number' && Number.isFinite(userId)) {
     const entries = await prisma.contestEntry.findMany({
-      where: { contestId, verified: true },
+      where: { contestId },
       select: { userId: true, steps: true },
       orderBy: [{ steps: 'desc' }, {submittedAt: 'asc'}]
     });
@@ -140,7 +140,7 @@ export async function getSnapshot(
     return { myRank, mySteps, tail5 };
   } else {
     const entries = await prisma.contestEntry.findMany({
-      where: { contestId, verified: true },
+      where: { contestId },
       include: { 
         user: { 
           select: { id: true, wechatNick: true, avatarUrl: true } 
@@ -172,7 +172,7 @@ export async function finalize(contestId: number) {
   }
 
   const entries = await prisma.contestEntry.findMany({
-    where: { contestId, verified: true },
+    where: { contestId },
     include: { user: { select: { id: true, wechatNick: true, avatarUrl: true } } },
     orderBy: [{ steps: 'desc' }, { submittedAt: 'asc' }]
   });

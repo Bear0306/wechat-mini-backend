@@ -108,15 +108,15 @@ router.get('/me', async (req: any, res) => {
   // map DB enum -> UI names expected by the mini-program
   // NONE -> BRONZE (free), VIP -> SILVER, VIP_PLUS -> GOLD
   const uiTier =
-    m?.tier === MembershipTier.VIP_PLUS
+    m?.tier === MembershipTier.GOLD
       ? 'GOLD'
-      : m?.tier === MembershipTier.VIP
+      : m?.tier === MembershipTier.SILVER
       ? 'SILVER'
       : 'BRONZE';
 
   // capabilities
-  const adFree = m?.tier === MembershipTier.VIP || m?.tier === MembershipTier.VIP_PLUS;
-  const allowRegionSelect = m?.tier === MembershipTier.VIP_PLUS;
+  const adFree = m?.tier === MembershipTier.SILVER || m?.tier === MembershipTier.GOLD;
+  const allowRegionSelect = m?.tier === MembershipTier.GOLD;
 
   // remaining joins from EntryCredit
   const credits = await prisma.entryCredit.findMany({

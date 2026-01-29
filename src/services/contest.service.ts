@@ -1,71 +1,102 @@
 import { prisma } from '../db';
-import { ContestFreq } from '@prisma/client';
-import { DateTime } from 'luxon';
+import { ContestStatus } from '@prisma/client';
+import { startOfToday, formatCnRange } from '../utils/time';
+import * as ContestentryModel from '../models/contestentry.model';
+import * as ContestModel from '../models/contest.model';
+import { decUserJoinCount } from './user.service';
 
-// export async function getOrCreateContest(city: string, heatLevel: number) {
-//     const freq: ContestFreq = heatLevel >= 4 ? 'DAILY': 'WEEKLY';
-//     const now = DateTime.now();
-//     const startAt = freq === 'DAILY' ? now.startOf('day') : now.startOf('week');
-//     const endAt = freq === 'DAILY' ? now.endOf('day') : now.endOf('week');
-//     const existing = await prisma.contest.findFirst({
-//         where: {
-//             scope: 'CITY',
-//             regionCode: city,
-//             startAt: { lte: now.toJSDate() },
-//             endAt: { gte: now.toJSDate()}
-//         }
-//     });
-    
-//     if (existing) 
-//         return existing;
-    
-//     return prisma.contest.create({
-//         data: {
-//             scope: 'CITY',
-//             regionCode: city,
-//             heatLevel,
-//             frequency: freq,
-//             prizeMin: heatLevel >= 4 ? 100 : 50,
-//             prizeMax: heatLevel >= 4 ? 500 : 200,
-//             startAt: startAt.toJSDate(),
-//             endAt: endAt.toJSDate()
-//         }
-//     });
-// } 
 
 export async function getUserContestList( userId: number, limit: number | null = 3) {
-  const now = new Date();
 
-  // 1️⃣ User's joined contests
-  const joined = await prisma.contestEntry.findMany({
-    where: { userId },
-    select: { contestId: true },
-    distinct: ['contestId'],
-  });
-  const joinedIds = joined.map((r: { contestId: number }) => r.contestId);
-
-  // 2️⃣ Upcoming contests (not started yet)
-  const upcoming = await prisma.contest.findMany({
-    where: { startAt: { gt: now } },
-    select: { id: true },
-    orderBy: { startAt: 'asc' },
-  });
-  const upcomingIds = upcoming.map((r: { id: number }) => r.id);
-
-  // 3️⃣ Merge and dedupe IDs
+  const joinedIds = await ContestentryModel.getJoinedContestIds(userId);
+  const upcomingIds = await ContestModel.getUpcomingContestIds();
   const allContestIds = Array.from(new Set([...joinedIds, ...upcomingIds]));
+
   if (allContestIds.length === 0) return [];
 
-  // 4️⃣ Fetch contest rows (limit optional)
-  const contests = await prisma.contest.findMany({
-    where: { id: { in: allContestIds } },
-    orderBy: { startAt: 'desc' },
-    ...(limit && limit > 0 ? { take: limit } : {}), // skip `take` if unlimited
-  });
-
-  // 5️⃣ Add joined flag
+  const contests = await ContestModel.fetchContestRows(allContestIds, limit);
+  
   return contests.map((c: typeof contests[number]) => ({
     ...c,
     joined: joinedIds.includes(c.id),
   }));
+}
+
+export async function getUserRecentContests(userId: number) {
+  return getUserContestList(userId, 3);
+}
+
+export async function participateContest(userId: number, contestId: number) { 
+  const contest = await ContestModel.fetchContestById(contestId);
+  if (!contest) throw { status: 404, message: '赛事不存在' };
+
+  const now = new Date();
+
+  // 仅允许“未开始”报名：UI 对应“未开始=显示 参与挑战”
+  const notStartedYet = now < contest.startAt;
+  if (!notStartedYet) {
+    if (now > contest.endAt || contest.status === ContestStatus.FINALIZED) {
+      throw { status: 409, message: '赛事已结束，仅可查看排名' };
+    }
+    throw { status: 409, message: '赛事已开始，仅可查看排名' };
+  }
+
+  // 报名（若已存在则复用）
+  const entry = await ContestentryModel.upsertContestEntry(userId, contestId);
+
+  await decUserJoinCount(userId);
+
+  return { entryId: entry.id, contestId: entry.contestId };
+}
+
+export async function getEndedContestList( userId: number, page: number, size: number ) {
+  const contests = await ContestModel.findEndedContestsWithEntries(userId);
+
+  const itemsAll = contests.map(c => {
+    const myEntry = c.entries.find(e => e.userId === userId);
+
+    let myRank: number | null = null;
+    let canClaim = false;
+    let claimed = c.prizeClaims.length > 0;
+
+    if (myEntry) {
+      const betterCount = c.entries.filter(
+        e => e.steps > myEntry.steps
+      ).length;
+
+      myRank = betterCount + 1;
+      canClaim = myRank <= c.rewardTopN && !claimed;
+    }
+
+    return {
+      contestId: c.id,
+      title: c.title,
+      dateText: formatCnRange(c.startAt, c.endAt),
+      rewardTopN: c.rewardTopN,
+      myRank,
+      canClaim,
+      claimed,
+      participated: !!myEntry,
+    };
+  });
+
+  // participated contests first
+  const sorted = itemsAll.sort((a, b) => {
+    return Number(b.participated) - Number(a.participated);
+  });
+
+  const start = (page - 1) * size;
+  const pageItems = sorted.slice(start, start + size);
+
+  return {
+    items: pageItems,
+    hasMore: start + size < sorted.length,
+  };
+}
+
+export async function updateContestStatus() {
+  const now = new Date();
+  console.log('Contest status updating started...', now);
+  await ContestModel.updateStatus();
+  console.log('Contest status updated:', now);
 }
