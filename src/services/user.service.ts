@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import { env } from '../env';
 import { code2Session, decryptWeRun } from "../adapters/wechat";
 import * as UserModel from '../models/user.model';
 import * as UserStepsModel from '../models/usersteps.model';
@@ -26,11 +27,8 @@ export async function upsertUserSteps( userId: number, newStepInfoList: StepInfo
   const SECONDS_PER_DAY = 86400
   const DAYS = 35
 
-  // Use timezone from env or default to Asia/Shanghai
-  const tz = process.env.TZ1 || 'Asia/Shanghai'
-
-  // Today at 00:00 in the desired timezone
-  const today = DateTime.local().setZone(tz).startOf('day')
+  const tz = env.tz;
+  const today = DateTime.now().setZone(tz).startOf('day');
   const cutoffTimestamp = today.toSeconds() - DAYS * SECONDS_PER_DAY
 
   // Read existing steps from DB
@@ -108,8 +106,7 @@ export async function getUserInfo(uid: number) {
   const user = await UserModel.findUserBasic(uid);
   if (!user) throw new Error("用户不存在");
 
-  const tz = process.env.TZ1 || "Asia/Shanghai";
-  const weekStart = DateTime.local().setZone(tz).startOf("week").toSeconds();
+  const weekStart = DateTime.now().setZone(env.tz).startOf('week').toSeconds();
 
   const steps = await UserStepsModel.getUserStepsList(uid);
   const list = steps ?? [];

@@ -1,9 +1,10 @@
 import { prisma } from '../db';
 import { ContestStatus } from '@prisma/client';
+import { nowInTz } from '../utils/time';
 
 
 export async function getUpcomingContestIds() {
-  const now = new Date();
+  const now = nowInTz().toJSDate();
   const upcoming = await prisma.contest.findMany({
     where: { startAt: { gt: now } },
     select: { id: true },
@@ -53,8 +54,7 @@ export async function fetchContestById(contestId: number) {
 }
 
 export async function updateStatus() {
-
-  const now = new Date();
+  const now = nowInTz().toJSDate();
   await prisma.contest.updateMany({
     where: {
       startAt: { lte: now },
@@ -75,16 +75,29 @@ export async function updateStatus() {
     },
   });
 
-  // 3️⃣ FINALIZING → FINALIZED (endAt + 24h)
-  const finalizedBefore = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  // 3️⃣ FINALIZING → FINALIZED is done in contest.service after leaderboard finalize (see updateContestStatus)
+}
 
-  await prisma.contest.updateMany({
+/** Contest IDs that are FINALIZING and endAt was more than 24h ago (ready to finalize leaderboard then set FINALIZED). */
+export async function getContestIdsToFinalize(): Promise<number[]> {
+  const now = nowInTz().toJSDate();
+  const finalizedBefore = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const rows = await prisma.contest.findMany({
     where: {
+      status: ContestStatus.FINALIZING,
       endAt: { lt: finalizedBefore },
     },
+    select: { id: true },
+  });
+  return rows.map((r: { id: number }) => r.id);
+}
+
+export async function updateStatusToFinalized(contestIds: number[]) {
+  if (contestIds.length === 0) return;
+  await prisma.contest.updateMany({
+    where: { id: { in: contestIds } },
     data: { status: ContestStatus.FINALIZED },
   });
-
 }
 
 export function findEndedContestsWithEntries(userId: number) {

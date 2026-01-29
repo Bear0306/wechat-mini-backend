@@ -1,17 +1,17 @@
 import { DateTime } from 'luxon';
 import { AgeGroup } from '@prisma/client';
+import { env } from '../env';
 
-export function classifyAgeGroup(b?:Date){
-    // 用户的出生日期，可选（可能为空)
-    if(!b)
+export function classifyAgeGroup(b?: Date) {
+    if (!b)
         return {
             group: AgeGroup.ADULT,
             canParticipate: true,
             canBuyMembership: true
         };
-    
-    // 计算年龄
-    const age = Math.floor(DateTime.now().diff(DateTime.fromJSDate(b),'years').years);
+
+    const now = DateTime.now().setZone(env.tz);
+    const age = Math.floor(now.diff(DateTime.fromJSDate(b), 'years').years);
     
     // 年龄判断逻辑
     if(age < 12)

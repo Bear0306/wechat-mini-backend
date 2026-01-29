@@ -1,20 +1,31 @@
 import { DateTime } from 'luxon';
+import { env } from '../env';
 
 export type Scope = 'day' | 'week' | 'month';
 
+/** Current time in server timezone (env.tz). Use for all date/time logic. */
+export function nowInTz(): DateTime {
+  return DateTime.now().setZone(env.tz);
+}
+
+/** Default "now" in server TZ for helpers that accept optional now. */
+function defaultNow() {
+  return nowInTz();
+}
+
 // 判断当前时间是否在 上午 6 点到晚上 8 点之间，如果在，则允许统计运动数据。
-export function isWithinValidCollectWindow(now = DateTime.local().setZone(process.env.TZ1||'Asia/Shanghai')){
-    const h = now.hour;
-    return h >= 6 && h < 20;
+export function isWithinValidCollectWindow(now = defaultNow()) {
+  const h = now.hour;
+  return h >= 6 && h < 20;
 }
 
 // 判断当前时间是否在 晚上 10 点到次日早上 6 点之间，如果在，则视为夜间休眠时间，不统计运动数据。
-export function isNightQuiet(now = DateTime.local().setZone(process.env.TZ1||'Asia/Shanghai')){
-    const h = now.hour;
-    return h >= 22 || h < 6;
+export function isNightQuiet(now = defaultNow()) {
+  const h = now.hour;
+  return h >= 22 || h < 6;
 }
 
-export function getRangeForScope(scope: Scope, startAt = DateTime.now().setZone('Asia/Shanghai'), endAt = DateTime.now().setZone('Asia/Shanghai')) {
+export function getRangeForScope(scope: Scope, startAt = defaultNow(), endAt = defaultNow()) {
     if (scope === 'day') {
       return { start: startAt.toJSDate(), end: endAt.toJSDate() };
     }
@@ -33,9 +44,7 @@ export function getRangeForScope(scope: Scope, startAt = DateTime.now().setZone(
 }
 
 export function startOfToday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return nowInTz().startOf('day').toJSDate();
 }
 
 export function sameYMD(a: Date, b: Date): boolean {

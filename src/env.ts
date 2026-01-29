@@ -1,6 +1,8 @@
 import 'dotenv/config';
 
 export const env = {
+    /** Server timezone for all date/time logic (e.g. Asia/Shanghai) */
+    tz: process.env.TZ || 'Asia/Shanghai',
     port: Number(process.env.PORT || 8080),
     jwtSecret: process.env.JWT_SECRET || 'sport-mini-competition',
     jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',

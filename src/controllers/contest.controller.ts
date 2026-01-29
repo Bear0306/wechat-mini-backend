@@ -1,6 +1,7 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import * as ContestService from '../services/contest.service';
+import * as AdminContestService from '../services/admin.contest.service';
 
 
 export async function getRecent (req: Request, res: Response) {
@@ -50,5 +51,88 @@ export async function participate (req: Request, res: Response) {
   } catch (err: any) {
     res.status(err.status || 500).json({ message: err.message || '服务器错误' });
   }
+}
 
+export async function adminList(req: Request, res: Response, next: NextFunction) {
+  try {
+    const page = Number(req.query.page ?? 1);
+    const size = Number(req.query.size ?? 50);
+    const where = (req.query.filters as object) ?? {};
+    const contests = await AdminContestService.listContests(page, size, where);
+    res.json(contests);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminGetById(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid id' });
+    const contest = await AdminContestService.getContestById(id);
+    if (!contest) return res.status(404).json({ error: 'Contest not found' });
+    res.json(contest);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminCreate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const body = req.body ?? {};
+    const data = {
+      title: String(body.title),
+      scope: body.scope,
+      regionCode: String(body.regionCode),
+      heatLevel: Number(body.heatLevel),
+      frequency: body.frequency,
+      audience: body.audience,
+      status: body.status,
+      rewardTopN: body.rewardTopN != null ? Number(body.rewardTopN) : undefined,
+      prizeMin: Number(body.prizeMin),
+      prizeMax: Number(body.prizeMax),
+      startAt: new Date(body.startAt),
+      endAt: new Date(body.endAt),
+    };
+    const contest = await AdminContestService.createContest(data);
+    res.status(201).json(contest);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminUpdate(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid id' });
+    const body = req.body ?? {};
+    const data: any = {};
+    if (body.title !== undefined) data.title = String(body.title);
+    if (body.scope !== undefined) data.scope = body.scope;
+    if (body.regionCode !== undefined) data.regionCode = String(body.regionCode);
+    if (body.heatLevel !== undefined) data.heatLevel = Number(body.heatLevel);
+    if (body.frequency !== undefined) data.frequency = body.frequency;
+    if (body.audience !== undefined) data.audience = body.audience;
+    if (body.status !== undefined) data.status = body.status;
+    if (body.rewardTopN !== undefined) data.rewardTopN = Number(body.rewardTopN);
+    if (body.prizeMin !== undefined) data.prizeMin = Number(body.prizeMin);
+    if (body.prizeMax !== undefined) data.prizeMax = Number(body.prizeMax);
+    if (body.startAt !== undefined) data.startAt = new Date(body.startAt);
+    if (body.endAt !== undefined) data.endAt = new Date(body.endAt);
+    const contest = await AdminContestService.updateContest(id, data);
+    res.json(contest);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function adminDelete(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid id' });
+    await AdminContestService.deleteContest(id);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
 }

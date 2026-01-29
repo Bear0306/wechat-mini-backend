@@ -1,8 +1,8 @@
-import { prisma } from '../db';
 import { ContestStatus } from '@prisma/client';
-import { startOfToday, formatCnRange } from '../utils/time';
+import { formatCnRange, nowInTz } from '../utils/time';
 import * as ContestentryModel from '../models/contestentry.model';
 import * as ContestModel from '../models/contest.model';
+import * as LeaderboardService from './leaderboard.service';
 import { decUserJoinCount } from './user.service';
 
 
@@ -30,7 +30,7 @@ export async function participateContest(userId: number, contestId: number) {
   const contest = await ContestModel.fetchContestById(contestId);
   if (!contest) throw { status: 404, message: '赛事不存在' };
 
-  const now = new Date();
+  const now = nowInTz().toJSDate();
 
   // 仅允许“未开始”报名：UI 对应“未开始=显示 参与挑战”
   const notStartedYet = now < contest.startAt;
@@ -95,8 +95,22 @@ export async function getEndedContestList( userId: number, page: number, size: n
 }
 
 export async function updateContestStatus() {
-  const now = new Date();
+  const now = nowInTz().toJSDate();
   console.log('Contest status updating started...', now);
   await ContestModel.updateStatus();
+
+  // When FINALIZING → FINALIZED: finalize leaderboard (rank) for each, then set status FINALIZED
+  const idsToFinalize = await ContestModel.getContestIdsToFinalize();
+  for (const contestId of idsToFinalize) {
+    try {
+      const r = await LeaderboardService.finalize(contestId);
+      if (r.ok) {
+        await ContestModel.updateStatusToFinalized([contestId]);
+        console.log('Contest finalized (leaderboard ranked):', contestId);
+      }
+    } catch (e: any) {
+      console.error('Finalize leaderboard failed for contest', contestId, e?.message || e);
+    }
+  }
   console.log('Contest status updated:', now);
 }

@@ -1,6 +1,6 @@
 import { prisma } from '../db';
 import type { Scope } from '../utils/time';
-import { getRangeForScope } from '../utils/time';
+import { getRangeForScope, nowInTz } from '../utils/time';
 import { createHash } from 'crypto';
 
 /** Row returned to frontend */
@@ -166,7 +166,7 @@ export async function finalize(contestId: number) {
   const contest = await prisma.contest.findUnique({ where: { id: contestId } });
   if (!contest) throw new Error('contest_not_found');
 
-  const now = new Date();
+  const now = nowInTz().toJSDate();
   if (contest.endAt > now) {
     return { ok: false as const, reason: 'contest_not_ended' as const };
   }
@@ -183,7 +183,7 @@ export async function finalize(contestId: number) {
   const baseTailRank = entries.length - tail5Raw.length + 1;
   const tail5 = tail5Raw.map((e: { userId: number; steps: number; user: { id: number; wechatNick: string | null; avatarUrl: string | null } }, i: number) => toRankRow(e, baseTailRank + i));
 
-  const finalizedAt = new Date();
+  const finalizedAt = nowInTz().toJSDate();
   const topJson = JSON.stringify(topN);
   const backupJson = JSON.stringify(tail5);
   const integrityHash = calcIntegrityHash(contestId, finalizedAt, topJson);
@@ -210,7 +210,7 @@ export async function finalize(contestId: number) {
 }
 
 export async function finalizeAllEligible() {
-  const now = new Date();
+  const now = nowInTz().toJSDate();
   const ended = await prisma.contest.findMany({
     where: { endAt: { lt: now } },
     select: { id: true },

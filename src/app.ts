@@ -13,7 +13,6 @@ import membershipRoutes from './routes/user/membership.routes';
 import rewardRoutes from './routes/user/reward.routes';
 // import quotaRoutes from './routes/quota.routes';
 
-import './jobs/finalizeLeaderboards';
 import './jobs/updateContestStatus';
 import { rateLimit } from './middlewares/rateLimit';
 
@@ -27,6 +26,7 @@ import { adminAuth } from './middlewares/adminAuth';
 import adminAuthRoutes from './routes/admin/auth.admin.routes';
 import adminContestRoutes from './routes/admin/contest.admin.routes';
 import adminPrizeRoutes from './routes/admin/prize.admin.routes';
+import adminPrizeRuleRoutes from './routes/admin/prizeRule.admin.routes';
 
 const app = express();
 
@@ -46,22 +46,20 @@ app.get('/api/health', (_req, res) =>
   })
 );
 
-// -------- USER APIs (require your existing userAuth) --------
-app.use('/api/auth', rateLimit('auth', 30, 60), authRoutes);
-app.use('/api/me',    userAuth, rateLimit('user', 120, 60), meRoutes);
-app.use('/api/contest', userAuth, rateLimit('contest', 120, 60), contestRoutes);
-app.use('/api/leaderboard', userAuth, rateLimit('board', 120, 60), leaderboardRoutes);
-app.use('/api/referral',    userAuth, rateLimit('ref', 60, 60), referralRoutes);
-app.use('/api/membership',  userAuth, rateLimit('member', 30, 60), membershipRoutes);
-app.use('/api/reward',      userAuth, rateLimit('reward', 30, 60), rewardRoutes);
-// app.use('/api/quota',    userAuth, rateLimit('reward', 30, 60), quotaRoutes);
+// -------- USER APIs: /api/user/* (require userAuth) --------
+app.use('/api/user/auth', rateLimit('auth', 30, 60), authRoutes);
+app.use('/api/user/me', userAuth, rateLimit('user', 120, 60), meRoutes);
+app.use('/api/user/contest', userAuth, rateLimit('contest', 120, 60), contestRoutes);
+app.use('/api/user/leaderboard', userAuth, rateLimit('board', 120, 60), leaderboardRoutes);
+app.use('/api/user/referral', userAuth, rateLimit('ref', 60, 60), referralRoutes);
+app.use('/api/user/membership', userAuth, rateLimit('member', 30, 60), membershipRoutes);
+app.use('/api/user/reward', userAuth, rateLimit('reward', 30, 60), rewardRoutes);
 
-// -------- ADMIN AUTH (login route; no adminAuth here) --------
-app.use('/admin', rateLimit('adminAuth', 10, 60), adminAuthRoutes);
-
-// -------- ADMIN APIs (require adminAuth + IP check) --------
-app.use('/admin/contest', adminAuth, adminContestRoutes);
-app.use('/admin/prize',   adminAuth, adminPrizeRoutes);
+// -------- ADMIN APIs: /api/admin/* --------
+app.use('/api/admin/auth', rateLimit('adminAuth', 10, 60), adminAuthRoutes);
+app.use('/api/admin/contest', adminAuth, adminContestRoutes);
+app.use('/api/admin/prize', adminAuth, adminPrizeRoutes);
+app.use('/api/admin/prize-rule', adminAuth, adminPrizeRuleRoutes);
 
 app.listen(env.port, () => console.log('Backend running at http://localhost:' + env.port));
 
