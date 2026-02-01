@@ -103,7 +103,7 @@ export async function updateStatusToFinalized(contestIds: number[]) {
 export function findEndedContestsWithEntries(userId: number) {
   return prisma.contest.findMany({
     where: {
-      status: ContestStatus.FINALIZED,
+      status: { in: [ContestStatus.FINALIZED, ContestStatus.FINALIZING] },
     },
     orderBy: { endAt: "desc" },
     select: {
@@ -112,6 +112,7 @@ export function findEndedContestsWithEntries(userId: number) {
       startAt: true,
       endAt: true,
       rewardTopN: true,
+      status: true,
 
       // 🔗 relation: all entries of this contest
       entries: {

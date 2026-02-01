@@ -79,6 +79,7 @@ export async function getEndedContestList( userId: number, page: number, size: n
       claimed,
       claimId,
       participated: !!myEntry,
+      status: c.status,
     };
   });
 
