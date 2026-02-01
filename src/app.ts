@@ -22,11 +22,15 @@ import { userAuth } from './middlewares/auth';
 // ⬇️ New admin-only auth that checks ADMIN_ALLOWED_IP from .env
 import { adminAuth } from './middlewares/adminAuth';
 
-// ⬇️ Minimal admin routers (examples)
+// ⬇️ Admin routers
 import adminAuthRoutes from './routes/admin/auth.admin.routes';
 import adminContestRoutes from './routes/admin/contest.admin.routes';
 import adminPrizeRoutes from './routes/admin/prize.admin.routes';
 import adminPrizeRuleRoutes from './routes/admin/prizeRule.admin.routes';
+import adminUserRoutes from './routes/admin/user.admin.routes';
+import adminLeaderboardRoutes from './routes/admin/leaderboard.admin.routes';
+import adminServiceAgentRoutes from './routes/admin/serviceAgent.admin.routes';
+import adminSystemRoutes from './routes/admin/system.admin.routes';
 
 const app = express();
 
@@ -60,6 +64,10 @@ app.use('/api/admin/auth', rateLimit('adminAuth', 10, 60), adminAuthRoutes);
 app.use('/api/admin/contest', adminAuth, adminContestRoutes);
 app.use('/api/admin/prize', adminAuth, adminPrizeRoutes);
 app.use('/api/admin/prize-rule', adminAuth, adminPrizeRuleRoutes);
+app.use('/api/admin/user', adminAuth, adminUserRoutes);
+app.use('/api/admin/leaderboard', adminAuth, adminLeaderboardRoutes);
+app.use('/api/admin/service-agent', adminAuth, adminServiceAgentRoutes);
+app.use('/api/admin/system', adminAuth, adminSystemRoutes);
 
 app.listen(env.port, () => console.log('Backend running at http://localhost:' + env.port));
 

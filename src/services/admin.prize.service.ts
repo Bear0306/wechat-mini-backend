@@ -8,8 +8,18 @@ export async function listClaims(page: number, size: number, where: object = {})
     skip,
     take,
     orderBy: { createdAt: 'desc' },
+    include: { assignedAgent: { select: { id: true, name: true } } },
   });
   return claims;
+}
+
+export async function assignAgent(claimId: number, agentId: number | null) {
+  const updated = await prisma.contestPrizeClaim.update({
+    where: { id: claimId },
+    data: { assignedAgentId: agentId },
+    include: { assignedAgent: { select: { id: true, name: true } } },
+  });
+  return updated;
 }
 
 export async function verifyClaim(claimId: number, pass: boolean, note?: string) {

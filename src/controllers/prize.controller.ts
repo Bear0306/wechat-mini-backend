@@ -49,3 +49,19 @@ export async function updateClaimStatus(req: Request, res: Response, next: NextF
     next(e);
   }
 }
+
+export async function assignAgent(req: Request, res: Response, next: NextFunction) {
+  const claimId = Number(req.params.id);
+  if (!Number.isFinite(claimId)) return res.status(400).json({ error: 'Invalid claim id' });
+  const body = z.object({
+    agentId: z.union([z.number().int().positive(), z.null()]),
+  }).safeParse(req.body);
+  if (!body.success) return res.status(400).json({ message: 'agentId required (number or null)' });
+  try {
+    const updated = await AdminPrizeService.assignAgent(claimId, body.data.agentId);
+    res.json(updated);
+  } catch (e: any) {
+    if (e?.code === 'P2025') return res.status(404).json({ error: 'Claim not found' });
+    next(e);
+  }
+}

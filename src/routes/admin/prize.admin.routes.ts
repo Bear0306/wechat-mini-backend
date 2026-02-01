@@ -7,5 +7,6 @@ router.post('/claim', PrizeController.listClaims);
 router.post('/verify', PrizeController.verify);
 router.post('/ship', PrizeController.ship);
 router.patch('/claim/:id/status', PrizeController.updateClaimStatus);
+router.patch('/claim/:id/agent', PrizeController.assignAgent);
 
 export default router;

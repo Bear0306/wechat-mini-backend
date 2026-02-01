@@ -31,6 +31,8 @@ model User {
   ageGroup         AgeGroup  @default(ADULT)
   canParticipate   Boolean   @default(true)
   canBuyMembership Boolean   @default(true)
+  isPromoter       Boolean   @default(false)
+  totalRewardsCent Int       @default(0) @db.UnsignedInt
   city             String?
   joinCount        Int    @default(3) @db.UnsignedInt
   prizeMultiplier  Int    @default(1) @db.UnsignedInt
@@ -328,6 +330,19 @@ model ContestPrizeRule {
   @@index([contestId, rankStart, rankEnd])
 }
 
+model ServiceAgent {
+  id        Int      @id @default(autoincrement())
+  name      String
+  wechatId  String?  @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedClaims ContestPrizeClaim[]
+
+  @@index([isActive])
+}
+
 model ContestPrizeClaim {
   id                  Int              @id @default(autoincrement())
   contestId           Int
@@ -336,18 +351,21 @@ model ContestPrizeClaim {
   steps               Int
   prizeValueCent      Int?
   csWechatId          String?
+  assignedAgentId     Int?
   status              PrizeClaimStatus @default(PENDING_INFO)
   useMultiple         Boolean @default(false)
   note                String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  contest        Contest       @relation(fields: [contestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  assignedAgent  ServiceAgent? @relation(fields: [assignedAgentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@unique([contestId, userId]) // -> where: { contestId_userId: { … } }
   @@index([userId, status])
   @@index([contestId, status])
+  @@index([assignedAgentId])
 }
 
 model DoubleCredit {
