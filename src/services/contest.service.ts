@@ -58,6 +58,7 @@ export async function getEndedContestList( userId: number, page: number, size: n
     let myRank: number | null = null;
     let canClaim = false;
     let claimed = c.prizeClaims.length > 0;
+    const claimId = c.prizeClaims.length > 0 ? c.prizeClaims[0].id : null;
 
     if (myEntry) {
       const betterCount = c.entries.filter(
@@ -76,6 +77,7 @@ export async function getEndedContestList( userId: number, page: number, size: n
       myRank,
       canClaim,
       claimed,
+      claimId,
       participated: !!myEntry,
     };
   });
