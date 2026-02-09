@@ -83,14 +83,11 @@ export async function adminCreate(req: Request, res: Response, next: NextFunctio
     const data = {
       title: String(body.title),
       scope: body.scope,
-      regionCode: String(body.regionCode),
+      regionCode: String(body.regionCode) ?? "",
       heatLevel: Number(body.heatLevel),
       frequency: body.frequency,
       audience: body.audience,
       status: body.status,
-      rewardTopN: body.rewardTopN != null ? Number(body.rewardTopN) : undefined,
-      prizeMin: Number(body.prizeMin),
-      prizeMax: Number(body.prizeMax),
       startAt: new Date(body.startAt),
       endAt: new Date(body.endAt),
     };
@@ -109,14 +106,11 @@ export async function adminUpdate(req: Request, res: Response, next: NextFunctio
     const data: any = {};
     if (body.title !== undefined) data.title = String(body.title);
     if (body.scope !== undefined) data.scope = body.scope;
-    if (body.regionCode !== undefined) data.regionCode = String(body.regionCode);
+    if (body.regionCode !== undefined) data.regionCode = String(body.regionCode) ?? '';
     if (body.heatLevel !== undefined) data.heatLevel = Number(body.heatLevel);
     if (body.frequency !== undefined) data.frequency = body.frequency;
     if (body.audience !== undefined) data.audience = body.audience;
     if (body.status !== undefined) data.status = body.status;
-    if (body.rewardTopN !== undefined) data.rewardTopN = Number(body.rewardTopN);
-    if (body.prizeMin !== undefined) data.prizeMin = Number(body.prizeMin);
-    if (body.prizeMax !== undefined) data.prizeMax = Number(body.prizeMax);
     if (body.startAt !== undefined) data.startAt = new Date(body.startAt);
     if (body.endAt !== undefined) data.endAt = new Date(body.endAt);
     const contest = await AdminContestService.updateContest(id, data);

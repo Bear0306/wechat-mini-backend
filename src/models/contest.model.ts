@@ -111,10 +111,9 @@ export function findEndedContestsWithEntries(userId: number) {
       title: true,
       startAt: true,
       endAt: true,
-      rewardTopN: true,
       status: true,
 
-      // 🔗 relation: all entries of this contest
+      // 🔗 entries
       entries: {
         select: {
           userId: true,
@@ -122,10 +121,17 @@ export function findEndedContestsWithEntries(userId: number) {
         },
       },
 
-      // 🔗 relation: prize claims (only for this user)
+      // 🔗 prize claims (only for this user)
       prizeClaims: {
         where: { userId },
         select: { id: true },
+      },
+
+      // 🎯 rewardTopN = max(rankEnd)
+      contestPrizeRule: {
+        select: { rankEnd: true },
+        orderBy: { rankEnd: 'desc' },
+        take: 1,
       },
     },
   });

@@ -35,28 +35,21 @@ export async function upsertMembership(userId: string, tier: MembershipTier, mon
         return prisma.membership.create({
             data: { 
                 userId: Number(userId),
-                tier,
+                tierLevel: tier,
                 startAt: now.toJSDate(),
                 endAt: now.plus({ months }).toJSDate(),
-                monthlyQuota: cfg.monthlyQuota,
-                carryOver: 0,
-                autoJoin: cfg.autoJoin
             }
         });
     }
 
-    const carry = Math.min((ex.carryOver ?? 0) + (ex.monthlyQuota ?? 0), cfg.carryOverMax ?? 0);
     const currentEnd = DateTime.fromJSDate(ex.endAt);
     const newEnd = (currentEnd < now ? now : currentEnd).plus({ months });
 
     return prisma.membership.update({
         where: { userId: Number(userId) },
         data: { 
-            tier,
+            tierLevel: tier,
             endAt: newEnd.toJSDate(),
-            monthlyQuota: cfg.monthlyQuota,
-            carryOver: carry,
-            autoJoin: cfg.autoJoin
         }
     });
 }
@@ -70,10 +63,9 @@ export async function purchase(uid: number, tier: MembershipTier, months = 1) {
   await prisma.$transaction([
     prisma.membership.upsert({
       where: { userId: uid },
-      update: { tier, startAt: now, endAt: end, monthlyQuota: qty },
-      create: { userId: uid, tier, startAt: now, endAt: end, monthlyQuota: qty, carryOver: 0 }
+      update: { tierLevel: tier, startAt: now, endAt: end},
+      create: { userId: uid, tierLevel: tier, startAt: now, endAt: end }
     }),
-    prisma.entryCredit.create({ data: { userId: uid, source: 'MEMBERSHIP', qty } })
   ]);
 
   return { ok: true, tier, qtyGranted: qty };
@@ -82,33 +74,18 @@ export async function purchase(uid: number, tier: MembershipTier, months = 1) {
 export async function getMe(uid: number) {
   const m = await prisma.membership.findUnique({
     where: { userId: uid },
-    select: { tier: true, startAt: true, endAt: true, autoJoin: true },
+    select: { tierLevel: true, startAt: true, endAt: true},
   });
 
-  const uiTier =
-    m?.tier === MembershipTier.GOLD ? 'GOLD' :
-    m?.tier === MembershipTier.SILVER ? 'SILVER' : 'BRONZE';
-
-  const adFree = m?.tier === MembershipTier.SILVER || m?.tier === MembershipTier.GOLD;
-  const allowRegionSelect = m?.tier === MembershipTier.GOLD;
-
-  const credits = await prisma.entryCredit.findMany({
-    where: { userId: uid },
-    select: { qty: true, consumedQty: true, expiresAt: true },
-  });
-  const joinCount = credits.reduce(
-    (acc: number, c: { qty: number; consumedQty: number }) => acc + Math.max(0, c.qty - c.consumedQty),
-    0
-  );
+  const adFree = m?.tierLevel === MembershipTier.SILVER || m?.tierLevel === MembershipTier.GOLD;
+  const allowRegionSelect = m?.tierLevel === MembershipTier.GOLD;
 
   return {
-    tier: uiTier,
+    tier: m?.tierLevel,
     startAt: m?.startAt ?? null,
     endAt: m?.endAt ?? null,
     adFree,
     allowRegionSelect,
-    autoJoin: !!m?.autoJoin,
-    joinCount,
   };
 }
 

@@ -17,7 +17,6 @@ export type PrizeRuleCreateInput = {
   rankStart: number;
   rankEnd: number;
   prizeValueCent: number;
-  audience?: ContestAudience | null;
 };
 
 export async function create(data: PrizeRuleCreateInput) {
@@ -27,7 +26,6 @@ export async function create(data: PrizeRuleCreateInput) {
       rankStart: data.rankStart,
       rankEnd: data.rankEnd,
       prizeValueCent: data.prizeValueCent,
-      audience: data.audience ?? undefined,
     },
   });
 }

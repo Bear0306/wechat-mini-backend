@@ -36,20 +36,16 @@ model User {
   city             String?
   joinCount        Int    @default(3) @db.UnsignedInt
   prizeMultiplier  Int    @default(1) @db.UnsignedInt
+  referralCode     String?    @unique
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
   membership          Membership?
-  referralCodes       ReferralCode[]  @relation("referralcode")
   referralsMade       Referral[]          @relation("referrer")
   referralsGot        Referral[]          @relation("referee")
   entries             ContestEntry[]
   prizeClaims         ContestPrizeClaim[]
   consents            UserConsent[]
-  entryCredits        EntryCredit[]
-  adRewards           AdReward[]
-  membershipHistories MembershipHistory[] // back relation for MembershipHistory.
-  doubleCredits       DoubleCredit[]
   userSteps           UserSteps?
 }
 
@@ -87,23 +83,12 @@ enum AgeGroup {
   BLOCKED_UNDER_12
 }
 
-model ReferralCode {
-  id         Int       @id @default(autoincrement())
-  userId     Int       @unique
-  code       String    @unique
-  createdAt  DateTime  @default(now())
-  usedCount  Int       @default(0)    @db.UnsignedInt
-
-  referraluser User    @relation("referralcode", fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@index([userId])
-}
-
 model Referral {
   id         Int      @id @default(autoincrement())
   referrerId Int
   refereeId  Int      @unique
   createdAt  DateTime @default(now())
+  verified   Int      @default(0)
 
   referrer User @relation("referrer", fields: [referrerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   referee  User @relation("referee", fields: [refereeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -111,23 +96,6 @@ model Referral {
   @@unique([referrerId, refereeId])
   @@index([referrerId])
   @@index([refereeId])
-}
-
-model EntryCredit {
-  id          Int          @id @default(autoincrement())
-  userId      Int
-  source      CreditSource
-  qty         Int          @default(1)
-  expiresAt   DateTime?
-  createdAt   DateTime     @default(now())
-  consumedQty Int          @default(0)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  // back-relations
-  adRewards     AdReward[]     @relation("AdRewardCredit") // 👈 opposite of AdReward.credit
-
-  @@index([userId, source])
 }
 
 enum CreditSource {
@@ -138,70 +106,50 @@ enum CreditSource {
   ADMIN
 }
 
-model Membership {
-  id           Int            @id @default(autoincrement())
-  userId       Int            @unique
-  tier         MembershipTier
-  startAt      DateTime
-  endAt        DateTime
-  monthlyQuota Int
-  carryOver    Int
-  autoJoin     Boolean        @default(false)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-
-model MembershipHistory {
-  id           Int            @id @default(autoincrement())
-  userId       Int
-  tier         MembershipTier
-  startAt      DateTime
-  endAt        DateTime
-  monthlyQuota Int
-  carryOver    Int
-  createdAt    DateTime       @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@index([userId, startAt])
-}
-
 enum MembershipTier {
-  NONE
   BRONZE
   SILVER
   GOLD
 }
 
-model AdReward {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  network   String
-  placement String
-  watchedAt DateTime @default(now())
-  granted   Boolean  @default(false)
-  creditId  Int?
-
-  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  credit EntryCredit? @relation("AdRewardCredit", fields: [creditId], references: [id], onDelete: SetNull, onUpdate: Cascade) // 👈 named
-
-  @@index([userId, watchedAt])
+enum MembershipDuring {
+  MONTHLY
+  ANNUAL
 }
+
+model MembershipTierInfo {
+  id           Int           @id @default(autoincrement())
+  level        MembershipTier     @unique
+  during       MembershipDuring
+  price        Int
+
+  memberships  Membership[]
+}
+
+
+model Membership {
+  id           Int            @id @default(autoincrement())
+  userId       Int            @unique
+  tierLevel    MembershipTier
+  startAt      DateTime
+  endAt        DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  tier MembershipTierInfo @relation( fields: [tierLevel],  references: [level],  onDelete: Restrict, onUpdate: Cascade )
+
+  @@index([userId])
+  @@index([tierLevel])
+}
+
 
 model Contest {
   id         Int             @id @default(autoincrement())
   title      String
-  scope      ContestScope
+  scope      RegionLevel
   regionCode String
-  heatLevel  Int
   frequency  ContestFreq
   audience   ContestAudience @default(ADULTS)
   status     ContestStatus   @default(SCHEDULED)
-  rewardTopN Int             @default(10)
-  prizeMin   Int
-  prizeMax   Int
   startAt    DateTime
   endAt      DateTime
   createdAt  DateTime        @default(now())
@@ -211,7 +159,7 @@ model Contest {
   entries          ContestEntry[]
   leaderboard      Leaderboard?
   prizeClaims      ContestPrizeClaim[]
-  ContestPrizeRule ContestPrizeRule[]
+  contestPrizeRule ContestPrizeRule[]
 
   @@index([status, startAt])
   @@index([regionCode, frequency, status])
@@ -222,6 +170,7 @@ model Region {
   name      String
   level     RegionLevel
   parent    String?
+  heatLevel  Int?
   createdAt DateTime    @default(now())
 
   contests Contest[] @relation("ContestRegion") // 👈 back relation
@@ -231,12 +180,7 @@ model Region {
 }
 
 enum RegionLevel {
-  CITY
-  PROVINCE
-  DISTRICT
-}
-
-enum ContestScope {
+  NONE
   CITY
   PROVINCE
   DISTRICT
@@ -266,17 +210,13 @@ model ContestEntry {
   userId           Int
   contestId        Int
   steps            Int          @default(0)
-  distanceM        Int          @default(0)
-  provider         DataProvider @default(WECHAT_SPORTS)
   submittedAt      DateTime     @default(now())
-  notes            String?
 
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   contest        Contest      @relation(fields: [contestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   
   @@unique([userId, contestId])
   @@index([contestId, steps])
-  @@index([contestId, distanceM])
   @@index([submittedAt])
   @@index([userId, submittedAt])
 }
@@ -285,12 +225,6 @@ enum EntryStatus {
   PENDING
   VERIFIED
   REJECTED
-}
-
-enum DataProvider {
-  WECHAT_SPORTS
-  NANO
-  OTHER
 }
 
 model Leaderboard {
@@ -308,10 +242,7 @@ model Leaderboard {
 }
 
 enum PrizeClaimStatus {
-  PENDING_INFO
-  SUBMITTED
-  VERIFIED
-  SHIPPED
+  PENDING
   COMPLETED
   REJECTED
 }
@@ -322,8 +253,6 @@ model ContestPrizeRule {
   rankStart Int
   rankEnd   Int
   prizeValueCent   Int
-
-  audience ContestAudience? // only for specific audience type (ADULTS/YOUTH)
 
   contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
 
@@ -350,11 +279,9 @@ model ContestPrizeClaim {
   rank                Int
   steps               Int
   prizeValueCent      Int?
-  csWechatId          String?
   assignedAgentId     Int?
-  status              PrizeClaimStatus @default(PENDING_INFO)
+  status              PrizeClaimStatus @default(PENDING)
   useMultiple         Boolean @default(false)
-  note                String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -368,49 +295,3 @@ model ContestPrizeClaim {
   @@index([assignedAgentId])
 }
 
-model DoubleCredit {
-  id          Int          @id @default(autoincrement())
-  userId      Int
-  source      CreditSource // REFERRAL / MEMBERSHIP / ADMIN 等
-  qty         Int          @default(1)
-  consumedQty Int          @default(0)
-  expiresAt   DateTime?
-  createdAt   DateTime     @default(now())
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@index([userId, source])
-}
-
-model AppSetting {
-  key       String   @id
-  valueJson String
-  updatedAt DateTime @updatedAt
-}
-
-model ApiProvider {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  isoCert   String?
-  slaUrl    String?
-  createdAt DateTime @default(now())
-
-  logs ApiCallLog[]
-}
-
-model ApiCallLog {
-  id         Int      @id @default(autoincrement())
-  providerId Int
-  endpoint   String
-  requestAt  DateTime @default(now())
-  durationMs Int
-  statusCode Int
-  success    Boolean
-  errCode    String?
-  errMessage String?
-
-  provider ApiProvider @relation(fields: [providerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@index([providerId, requestAt])
-  @@index([success])
-}

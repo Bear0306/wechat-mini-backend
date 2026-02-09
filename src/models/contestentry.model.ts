@@ -1,6 +1,4 @@
 import { prisma } from '../db';
-import { DataProvider } from '@prisma/client';
-
 
 
 export async function getJoinedContestIds(userId: number) {
@@ -22,8 +20,6 @@ export async function upsertContestEntry(userId: number, contestId: number) {
       userId: userId,
       contestId: contestId,
       steps: 0,
-      distanceM: 0,
-      provider: DataProvider.OTHER,
       submittedAt: now,
     },
     select: { id: true, contestId: true },

@@ -2,29 +2,58 @@ import crypto from 'crypto';
 import { prisma } from '../db';
 
 export async function getOrCreateReferralCode(userId: number) {
-  let referral = await prisma.referralCode.findUnique({ where: { userId } });
-  if (!referral) {
+  // Find the user and check if they already have a referral code
+  let user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, referralCode: true }
+  });
+
+  // If the user doesn't have a referral code, create one
+  if (!user || !user.referralCode) {
     let code: string;
     do {
       code = 'R' + crypto.randomBytes(4).toString('hex').toUpperCase();
-      const exists = await prisma.referralCode.findUnique({ where: { code } });
+      const exists = await prisma.user.findUnique({
+        where: { referralCode: code },
+        select: { id: true }
+      });
       if (!exists) break;
     } while (true);
-    referral = await prisma.referralCode.create({ data: { userId, code } });
+
+    user = await prisma.user.update({
+      where: { id: userId },
+      data: { referralCode: code },
+      select: { id: true, referralCode: true }
+    });
   }
-  return { ok: true, code: referral.code, usedCount: referral.usedCount, createdAt: referral.createdAt };
+
+  // Prepare basic response (add .usedCount and .createdAt if needed)
+  return { ok: true, code: user.referralCode };
+
 }
 
 export async function acceptReferral(code: string, refereeId: number) {
-  const referrer = await prisma.referralCode.findUnique({ where: { code } });
-  if (!referrer) return { ok: false, error: 'Invalid referral code', status: 404 as const };
-  if (referrer.userId === refereeId) return { ok: false, error: 'You cannot refer yourself', status: 400 as const };
+  // Look up the user who owns the referral code
+  const referrer = await prisma.user.findUnique({
+    where: { referralCode: code },
+    select: { id: true, referralCode: true }
+  });
+  if (!referrer) {
+    return { ok: false, error: 'Invalid referral code', status: 404 as const };
+  }
+  if (referrer.id === refereeId) {
+    return { ok: false, error: 'You cannot refer yourself', status: 400 as const };
+  }
+  // Check if this referee already has a referral
   const existing = await prisma.referral.findUnique({ where: { refereeId } });
-  if (existing) return { ok: true, alreadyAccepted: true };
-  await prisma.$transaction([
-    prisma.referral.create({ data: { referrerId: referrer.userId, refereeId } }),
-    prisma.referralCode.update({ where: { code }, data: { usedCount: { increment: 1 } } }),
-  ]);
+  if (existing) {
+    return { ok: true, alreadyAccepted: true };
+  }
+  await prisma.referral.create({
+    data: { referrerId: referrer.id, refereeId }
+  });
+  // Optionally, you could update a usedCount on user if needed,
+  // but the user table does not appear to have that field.
   return { ok: true };
 }
 
@@ -65,23 +94,4 @@ export async function getReferralMultiplier(userIdInput: number | string): Promi
     else if (referredCount >= 3) multiplierX = 2;
 
     return { multiplierX, referredCount };
-}
-
-export async function grantReferralIfEligible(referrerId: number) {
-    const count = await prisma.referral.count({ where: { referrerId } });
-    // 每凑满 3 人送一次
-    const packsGiven = Math.floor(count / 3);
-  
-    // 查已送了多少次（用一张发放记录表也行；这里直接统计 DoubleCredit + EntryCredit 来推断）
-    const givenEntry = await prisma.entryCredit.count({ where: { userId: referrerId, source: 'REFERRAL' }});
-    const givenDouble = await prisma.doubleCredit.count({ where: { userId: referrerId, source: 'REFERRAL' }});
-  
-    // 若已有发放不等于应发放，补发缺口
-    const need = Math.max(0, packsGiven - Math.min(givenEntry, givenDouble));
-    if (need > 0) {
-      await prisma.$transaction([
-        prisma.entryCredit.create({ data: { userId: referrerId, source: 'REFERRAL', qty: need }}),
-        prisma.doubleCredit.create({ data: { userId: referrerId, source: 'REFERRAL', qty: need }}),
-      ]);
-    }
 }

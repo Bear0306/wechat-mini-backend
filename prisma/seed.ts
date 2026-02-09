@@ -4,13 +4,10 @@ import {
   User,
   AgeGroup,
   MembershipTier,
-  ContestScope,
   ContestFreq,
   ContestAudience,
   ContestStatus,
   RegionLevel,
-  EntryStatus,
-  DataProvider,
   PrizeClaimStatus,
 } from '@prisma/client';
 
@@ -34,16 +31,10 @@ async function main() {
 
   // ---------- clean (dev only) ----------
   await prisma.$transaction([
-    prisma.apiCallLog.deleteMany(),
-    prisma.apiProvider.deleteMany(),
-    prisma.appSetting.deleteMany(),
     prisma.contestPrizeClaim.deleteMany(),
     prisma.leaderboard.deleteMany(),
     prisma.contestEntry.deleteMany(),
-    prisma.membershipHistory.deleteMany(),
     prisma.membership.deleteMany(),
-    prisma.adReward.deleteMany(),
-    prisma.entryCredit.deleteMany(),
     prisma.referral.deleteMany(),
     prisma.contest.deleteMany(),
     prisma.region.deleteMany(),
@@ -55,30 +46,14 @@ async function main() {
   // PROVINCE: CN-11 北京市；CITY: CN-11-01 北京市；DISTRICT: CN-11-01-01 东城区
   await prisma.region.createMany({
     data: [
-      { code: 'CN-11', name: '北京市', level: RegionLevel.PROVINCE, parent: null },
-      { code: 'CN-11-01', name: '北京市', level: RegionLevel.CITY, parent: 'CN-11' },
-      { code: 'CN-11-01-01', name: '东城区', level: RegionLevel.DISTRICT, parent: 'CN-11-01' },
+      { code: 'CN', name: '中国大陆', level: RegionLevel.NONE, heatLevel: 5, parent: null },
+      { code: 'CN-11', name: '北京市', level: RegionLevel.PROVINCE, heatLevel: 5, parent: 'CN' },
+      { code: 'CN-11-01', name: '北京市', level: RegionLevel.CITY, heatLevel: 5, parent: 'CN-11' },
+      { code: 'CN-11-01-01', name: '东城区', level: RegionLevel.DISTRICT, heatLevel: 5, parent: 'CN-11-01' },
     ],
     skipDuplicates: true,
   });
 
-
-  // ---------- app settings / providers ----------
-  await prisma.appSetting.create({
-    data: {
-      key: 'app.config',
-      valueJson: JSON.stringify({
-        statsWindow: { start: '06:00', end: '20:00' },
-        minorPrizeCap: 3000,
-      }),
-    },
-  });
-  await prisma.apiProvider.createMany({
-    data: [
-      { name: 'WECHAT_SPORTS', isoCert: 'ISO 27001', slaUrl: '' },
-      { name: 'NANO', isoCert: 'ISO 27001', slaUrl: '' },
-    ],
-  });
   // ---------- users ----------
   const users: User[] = [];
   for (let i = 1; i <= 20; i++) {
@@ -109,19 +84,6 @@ async function main() {
     users.push(u);
   }
 
-  // membership for uid=5 (users[4])
-  await prisma.membership.create({
-    data: {
-      userId: users[4].id,
-      tier: MembershipTier.BRONZE,
-      startAt: at(-10, 0),
-      endAt: at(20, 0),
-      monthlyQuota: 20,
-      carryOver: 5,
-      autoJoin: true,
-    },
-  });
-
   // ---------- contests ----------
   const makeContest = async (
     title: string,
@@ -133,15 +95,11 @@ async function main() {
     prisma.contest.create({
       data: {
         title,
-        scope: ContestScope.CITY,
+        scope: RegionLevel.CITY,
         regionCode: 'CN-11-01',
-        heatLevel: 5,
         frequency: freq,
         audience,
         status: statusForRange(startAt, endAt),
-        rewardTopN: freq === 'WEEKLY' ? 20 : 10,
-        prizeMin: 50,
-        prizeMax: 200,
         startAt,
         endAt,
       },
@@ -171,9 +129,6 @@ async function main() {
           userId: u.id,
           contestId,
           steps,
-          distanceM: Math.floor(steps * 0.6),
-          provider: DataProvider.WECHAT_SPORTS,
-          notes: null,
         },
       });
     }
@@ -184,7 +139,7 @@ async function main() {
   // ensure a higher #1
   await prisma.contestEntry.updateMany({
     where: { contestId: cDaily1.id, userId: users[0].id },
-    data: { steps: 25000, distanceM: Math.floor(25000 * 0.6) },
+    data: { steps: 25000 },
   });
 
   await seedEntries(cDaily2.id);
@@ -212,7 +167,7 @@ async function main() {
         prizeValueCent: 100,
         rank: 1,
         steps: wTop3[0].steps,
-        status: PrizeClaimStatus.SHIPPED,
+        status: PrizeClaimStatus.COMPLETED,
       },
     });
   if (wTop3[1])
@@ -223,7 +178,7 @@ async function main() {
         prizeValueCent: 100,
         rank: 2,
         steps: wTop3[1].steps,
-        status: PrizeClaimStatus.SUBMITTED,
+        status: PrizeClaimStatus.COMPLETED,
       },
     });
   if (wTop3[2])
@@ -234,11 +189,10 @@ async function main() {
         prizeValueCent: 100,
         rank: 3,
         steps: wTop3[2].steps,
-        status: PrizeClaimStatus.PENDING_INFO,
+        status: PrizeClaimStatus.PENDING,
       },
     });
 
-  // Ensure uid=5 is within rewardTopN for cDaily1 but has **no** claim yet → “领取奖励”
   const myD1 = await prisma.contestEntry.findFirst({
     where: { contestId: cDaily1.id, userId: users[4].id },
   });
@@ -250,7 +204,7 @@ async function main() {
     if (rank > 10) {
       await prisma.contestEntry.update({
         where: { id: myD1.id },
-        data: { steps: 22000, distanceM: 13200 },
+        data: { steps: 22000 },
       });
     }
   }

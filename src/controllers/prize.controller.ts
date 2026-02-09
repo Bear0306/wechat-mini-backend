@@ -37,7 +37,7 @@ export async function updateClaimStatus(req: Request, res: Response, next: NextF
   const claimId = Number(req.params.id);
   if (!Number.isFinite(claimId)) return res.status(400).json({ error: 'Invalid claim id' });
   const body = z.object({
-    status: z.enum(['PENDING_INFO', 'SUBMITTED', 'VERIFIED', 'SHIPPED', 'COMPLETED', 'REJECTED']),
+    status: z.enum(['PENDING', 'COMPLETED', 'REJECTED']),
   }).safeParse(req.body);
   if (!body.success) return res.status(400).json({ message: '参数错误', issues: body.error.flatten() });
   try {

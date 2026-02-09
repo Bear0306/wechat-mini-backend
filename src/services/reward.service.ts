@@ -22,19 +22,21 @@ export async function startClaim(contestId: number, uid: number) {
 
   const { rank, steps } = await computeRank(contestId, uid);
   if (!rank) return { status: 403 as const, message: '未参赛或成绩无效' };
-  if (rank > contest.rewardTopN) return { status: 403 as const, message: '未在获奖名次内，无法领取' };
+  const rewardTopN = await prisma.contestPrizeRule.findFirst({ where: { contestId }, orderBy: { rankEnd: 'desc' }, take: 1 });
+  const topCount = rewardTopN?.rankEnd ?? 10;
+  if (rank > topCount) return { status: 403 as const, message: '未在获奖名次内，无法领取' };
 
   const claim = await prisma.contestPrizeClaim.upsert({
     where: { contestId_userId: { contestId, userId: uid } },
     update: { rank, steps },
-    create: { contestId, userId: uid, rank, steps, status: 'PENDING_INFO' },
+    create: { contestId, userId: uid, rank, steps, status: 'PENDING' },
   });
 
   return {
     claimId: claim.id,
     rank: claim.rank,
     status: claim.status,
-    stateHint: claim.status === 'SHIPPED' ? '静待' : null,
+    stateHint: claim.status === 'COMPLETED' ? '已完成' : null,
   };
 }
 
@@ -61,12 +63,13 @@ export async function getClaimDetail(uid: number, opts: { claimId?: number; cont
   }
   if (!claim || claim.userId !== uid) return null;
 
-  const csWeChatId = process.env.CS_WECHAT_ID || '15786424201';
+  const csAgents = await prisma.serviceAgent.findMany({ where: { isActive: true } });
+  const csWeChatIds = csAgents.map((agent) => agent.wechatId);
+  const csWeChatId = csWeChatIds[Math.floor(Math.random() * csWeChatIds.length)];
+  
   const stateHint = (() => {
     switch (claim.status) {
-      case PrizeClaimStatus.SHIPPED: return '静待';
-      case PrizeClaimStatus.VERIFIED: return '待发货';
-      case PrizeClaimStatus.SUBMITTED: return '已提交';
+      case PrizeClaimStatus.PENDING: return '已提交';
       case PrizeClaimStatus.COMPLETED: return '已完成';
       case PrizeClaimStatus.REJECTED: return '已驳回';
       default: return '';

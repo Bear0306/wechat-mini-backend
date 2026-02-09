@@ -36,7 +36,6 @@ export async function bind(req: Request, res: Response) {
     return res.status(400).json({ message: '参数错误' });
   }
   await ReferralService.addReferral(body.data.referrerId, uid);
-  await ReferralService.grantReferralIfEligible(body.data.referrerId);
   res.json({ ok: true });
 }
 

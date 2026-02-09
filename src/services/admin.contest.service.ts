@@ -1,5 +1,5 @@
 import { prisma } from '../db';
-import type { ContestStatus, ContestScope, ContestFreq, ContestAudience } from '@prisma/client';
+import type { ContestStatus, RegionLevel, ContestFreq, ContestAudience } from '@prisma/client';
 
 export async function listContests(page: number, size: number, where: object = {}) {
   const take = Math.min(Math.max(size, 1), 200);
@@ -16,21 +16,18 @@ export async function listContests(page: number, size: number, where: object = {
 export async function getContestById(id: number) {
   return prisma.contest.findUnique({
     where: { id },
-    include: { ContestPrizeRule: true },
+    include: { contestPrizeRule: true },
   });
 }
 
 export type ContestCreateInput = {
   title: string;
-  scope: ContestScope;
-  regionCode: string;
+  scope: RegionLevel;
+  regionCode: string | "";
   heatLevel: number;
   frequency: ContestFreq;
   audience?: ContestAudience;
   status?: ContestStatus;
-  rewardTopN?: number;
-  prizeMin: number;
-  prizeMax: number;
   startAt: Date;
   endAt: Date;
 };
@@ -40,14 +37,10 @@ export async function createContest(data: ContestCreateInput) {
     data: {
       title: data.title,
       scope: data.scope,
-      regionCode: data.regionCode,
-      heatLevel: data.heatLevel,
+      regionCode: data.regionCode ?? '',
       frequency: data.frequency,
       audience: data.audience ?? 'ADULTS',
       status: data.status ?? 'SCHEDULED',
-      rewardTopN: data.rewardTopN ?? 10,
-      prizeMin: data.prizeMin,
-      prizeMax: data.prizeMax,
       startAt: data.startAt,
       endAt: data.endAt,
     },

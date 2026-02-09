@@ -177,8 +177,9 @@ export async function finalize(contestId: number) {
     orderBy: [{ steps: 'desc' }, { submittedAt: 'asc' }]
   });
 
-  const rewardTopN = contest.rewardTopN ?? 10;
-  const topN = entries.slice(0, rewardTopN).map((e: { userId: number; steps: number; user: { id: number; wechatNick: string | null; avatarUrl: string | null } }, i: number) => toRankRow(e, i + 1));
+  const rewardTopN = await prisma.contestPrizeRule.findFirst({ where: { contestId }, orderBy: { rankEnd: 'desc' }, take: 1 });
+  const topCount = rewardTopN?.rankEnd ?? 10;
+  const topN = entries.slice(0, topCount).map((e: { userId: number; steps: number; user: { id: number; wechatNick: string | null; avatarUrl: string | null } }, i: number) => toRankRow(e, i + 1));
   const tail5Raw = entries.slice(-5);
   const baseTailRank = entries.length - tail5Raw.length + 1;
   const tail5 = tail5Raw.map((e: { userId: number; steps: number; user: { id: number; wechatNick: string | null; avatarUrl: string | null } }, i: number) => toRankRow(e, baseTailRank + i));

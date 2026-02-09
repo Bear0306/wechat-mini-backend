@@ -23,10 +23,10 @@ export async function assignAgent(claimId: number, agentId: number | null) {
 }
 
 export async function verifyClaim(claimId: number, pass: boolean, note?: string) {
-  const status = pass ? 'VERIFIED' : 'REJECTED';
+  const status = pass ? 'COMPLETED' : 'REJECTED';
   const updated = await prisma.contestPrizeClaim.update({
     where: { id: claimId },
-    data: { status, note: note ?? null },
+    data: { status},
   });
   return { claimId: updated.id, status: updated.status };
 }
@@ -34,13 +34,13 @@ export async function verifyClaim(claimId: number, pass: boolean, note?: string)
 export async function shipClaim(claimId: number) {
   const updated = await prisma.contestPrizeClaim.update({
     where: { id: claimId },
-    data: { status: 'SHIPPED' },
+    data: { status: 'COMPLETED' },
   });
   return { claimId: updated.id, status: updated.status };
 }
 
 export async function updateClaimStatus(claimId: number, status: string) {
-  const valid: string[] = ['PENDING_INFO', 'SUBMITTED', 'VERIFIED', 'SHIPPED', 'COMPLETED', 'REJECTED'];
+  const valid: string[] = ['PENDING','COMPLETED', 'REJECTED'];
   if (!valid.includes(status)) {
     throw new Error('Invalid status');
   }

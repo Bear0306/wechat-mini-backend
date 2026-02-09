@@ -33,7 +33,8 @@
 - `VIP`  
 - `VIP_PLUS`  
 
-### `ContestScope`
+### `RegionLevel`
+- `NONE`
 - `CITY`  
 - `PROVINCE`  
 - `DISTRICT`  

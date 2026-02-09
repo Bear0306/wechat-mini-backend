@@ -30,7 +30,7 @@ import adminPrizeRuleRoutes from './routes/admin/prizeRule.admin.routes';
 import adminUserRoutes from './routes/admin/user.admin.routes';
 import adminLeaderboardRoutes from './routes/admin/leaderboard.admin.routes';
 import adminServiceAgentRoutes from './routes/admin/serviceAgent.admin.routes';
-import adminSystemRoutes from './routes/admin/system.admin.routes';
+import adminRegionRoutes from './routes/admin/region.admin.routes';
 
 const app = express();
 
@@ -67,7 +67,7 @@ app.use('/api/admin/prize-rule', adminAuth, adminPrizeRuleRoutes);
 app.use('/api/admin/user', adminAuth, adminUserRoutes);
 app.use('/api/admin/leaderboard', adminAuth, adminLeaderboardRoutes);
 app.use('/api/admin/service-agent', adminAuth, adminServiceAgentRoutes);
-app.use('/api/admin/system', adminAuth, adminSystemRoutes);
+app.use('/api/admin/region', adminAuth, adminRegionRoutes);
 
 app.listen(env.port, () => console.log('Backend running at http://localhost:' + env.port));
 

@@ -54,6 +54,7 @@ export async function getEndedContestList( userId: number, page: number, size: n
 
   const itemsAll = contests.map(c => {
     const myEntry = c.entries.find(e => e.userId === userId);
+    const rewardTopN = c.contestPrizeRule[0]?.rankEnd ?? 10;
 
     let myRank: number | null = null;
     let canClaim = false;
@@ -66,14 +67,14 @@ export async function getEndedContestList( userId: number, page: number, size: n
       ).length;
 
       myRank = betterCount + 1;
-      canClaim = myRank <= c.rewardTopN && !claimed;
+      canClaim = myRank <= rewardTopN && !claimed;
     }
 
     return {
       contestId: c.id,
       title: c.title,
       dateText: formatCnRange(c.startAt, c.endAt),
-      rewardTopN: c.rewardTopN,
+      rewardTopN: rewardTopN,
       myRank,
       canClaim,
       claimed,
