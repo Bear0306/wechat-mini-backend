@@ -23,7 +23,7 @@ export async function userLogin(req: Request, res: Response) {
     unionid = session.unionid;
 
     // Ensure user exists
-    const user = await upsertUserByOpenid(openid, unionid);
+    const user = await upsertUserByOpenid(openid);
 
     const userId = user.id?? 5;
 

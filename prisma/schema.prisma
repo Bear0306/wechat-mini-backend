@@ -21,8 +21,6 @@ model Admin {
 model User {
   id               Int       @id @default(autoincrement())
   openid           String    @unique
-  unionid          String?   @unique
-  phoneEnc         String?
   wechatNick       String?
   avatarUrl        String?
   realNameVerified Boolean   @default(false)
@@ -31,7 +29,6 @@ model User {
   ageGroup         AgeGroup  @default(ADULT)
   canParticipate   Boolean   @default(true)
   canBuyMembership Boolean   @default(true)
-  isPromoter       Boolean   @default(false)
   totalRewardsCent Int       @default(0) @db.UnsignedInt
   city             String?
   joinCount        Int    @default(3) @db.UnsignedInt

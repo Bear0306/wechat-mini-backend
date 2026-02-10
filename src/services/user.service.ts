@@ -19,8 +19,8 @@ export async function getUserByOpenId(openid: string) {
   return UserModel.getUserByOpenId(openid);
 }
 
-export async function upsertUserByOpenid(openid: string, unionid?: string) {
-  return UserModel.upsertUserByOpenid(openid, unionid);
+export async function upsertUserByOpenid(openid: string) {
+  return UserModel.upsertUserByOpenid(openid);
 }
 
 export async function upsertUserSteps( userId: number, newStepInfoList: StepInfo[] ) {

@@ -25,13 +25,11 @@ export async function getUserByOpenId(openid: string) {
   return prisma.user.findUnique({ where: { openid } });
 }
 
-export async function upsertUserByOpenid(openid: string, unionid?: string) {
+export async function upsertUserByOpenid(openid: string) {
   return prisma.user.upsert({
     where: { openid },
-    update: { unionid },
     create: {
       openid,
-      unionid,
       wechatNick: '新用户',
       ageGroup: AgeGroup.ADULT,
       canParticipate: true,
@@ -40,6 +38,7 @@ export async function upsertUserByOpenid(openid: string, unionid?: string) {
       joinCount: 3,
       prizeMultiplier: 1
     },
+    update: {},
   });
 }
 

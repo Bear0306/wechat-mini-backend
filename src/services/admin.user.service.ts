@@ -1,9 +1,11 @@
 import { prisma } from '../db';
+import { AgeGroup } from '@prisma/client'
 
 export interface AdminUserUpdate {
-  isPromoter?: boolean;
+  realNameVerified?: boolean;
   canParticipate?: boolean;
-  totalRewardsCent?: number;
+  canBuyMembership?: boolean;
+  ageGroup?: AgeGroup;
 }
 
 export async function findUserById(id: number) {
@@ -14,11 +16,15 @@ export async function findUserById(id: number) {
       openid: true,
       wechatNick: true,
       avatarUrl: true,
+      realNameVerified: true,
+      birthDate: true,
+      city: true,
       canParticipate: true,
-      isPromoter: true,
+      canBuyMembership: true, 
       totalRewardsCent: true,
       joinCount: true,
       prizeMultiplier: true,
+      referralCode: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -26,20 +32,22 @@ export async function findUserById(id: number) {
   return user;
 }
 
-export async function updateUser(id: number, data: AdminUserUpdate) {
+export async function updateUser( id: number, data: AdminUserUpdate) {
   const updated = await prisma.user.update({
     where: { id },
     data: {
-      ...(data.isPromoter !== undefined && { isPromoter: data.isPromoter }),
+      ...(data.realNameVerified !== undefined && { realNameVerified: data.realNameVerified }),
       ...(data.canParticipate !== undefined && { canParticipate: data.canParticipate }),
-      ...(data.totalRewardsCent !== undefined && { totalRewardsCent: data.totalRewardsCent }),
+      ...(data.canBuyMembership !== undefined && { canBuyMembership: data.canBuyMembership }),
+      ...(data.ageGroup !== undefined && { ageGroup: { set: data.ageGroup } }),
     },
     select: {
       id: true,
       wechatNick: true,
+      realNameVerified: true,
+      ageGroup: true,
       canParticipate: true,
-      isPromoter: true,
-      totalRewardsCent: true,
+      canBuyMembership: true,
       updatedAt: true,
     },
   });

@@ -18,9 +18,10 @@ export async function updateUser(req: Request, res: Response, next: NextFunction
   if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid user id' });
   const body = req.body ?? {};
   const data = {
-    isPromoter: body.isPromoter,
+    realNameVerified: body.realNameVerified,
     canParticipate: body.canParticipate,
-    totalRewardsCent: body.totalRewardsCent != null ? Number(body.totalRewardsCent) : undefined,
+    canBuyMembership: body.canBuyMembership,
+    ageGroup: body.ageGroup
   };
   if (Object.keys(data).every((k) => data[k as keyof typeof data] === undefined)) {
     return res.status(400).json({ error: 'No fields to update' });

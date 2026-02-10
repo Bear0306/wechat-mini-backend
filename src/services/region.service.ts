@@ -15,3 +15,12 @@ export async function listRegionsByLevel(level: RegionLevel): Promise<RegionRow[
   });
   return regions;
 }
+
+
+export async function listAllRegions(): Promise<RegionRow[]> {
+  const regions = await prisma.region.findMany({
+    select: { code: true, name: true, level: true },
+    orderBy: [{ code: 'asc' }],
+  });
+  return regions;
+}

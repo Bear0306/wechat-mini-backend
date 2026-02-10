@@ -37,7 +37,7 @@ export async function createContest(data: ContestCreateInput) {
     data: {
       title: data.title,
       scope: data.scope,
-      regionCode: data.regionCode ?? '',
+      regionCode: data.regionCode ?? 'CN',
       frequency: data.frequency,
       audience: data.audience ?? 'ADULTS',
       status: data.status ?? 'SCHEDULED',

@@ -13,3 +13,11 @@ export async function listByLevel(req: Request, res: Response, next: NextFunctio
     next(err);
   }
 }
+export async function listAll(req: Request, res: Response, next: NextFunction) {
+  try {
+    const regions = await RegionService.listAllRegions();
+    res.json(regions);
+  } catch (err) {
+    next(err);
+  }
+}

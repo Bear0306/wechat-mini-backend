@@ -69,8 +69,6 @@ async function main() {
     const u = await prisma.user.create({
       data: {
         openid: `openid_${i}`,
-        unionid: null,
-        phoneEnc: `enc_${i}`,
         wechatNick: `用户${i}`,
         realNameVerified: i % 2 === 0,
         birthDate: at(-365 * age, 0),
@@ -147,6 +145,17 @@ async function main() {
   await seedEntries(cWeek1.id, users[4].id, 23000);
   await seedEntries(cDailyNow.id);
 
+  await prisma.serviceAgent.create({
+    data: {
+      id: 1,
+      name: '客户服务1',
+      wechatId: '123456789',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+
   // ---------- helper: top ranks ----------
   const topRanks = async (contestId: number, take: number) =>
     prisma.contestEntry.findMany({
@@ -167,6 +176,7 @@ async function main() {
         prizeValueCent: 100,
         rank: 1,
         steps: wTop3[0].steps,
+        assignedAgentId: 1,
         status: PrizeClaimStatus.COMPLETED,
       },
     });
@@ -178,6 +188,7 @@ async function main() {
         prizeValueCent: 100,
         rank: 2,
         steps: wTop3[1].steps,
+        assignedAgentId: 1,
         status: PrizeClaimStatus.COMPLETED,
       },
     });
@@ -189,6 +200,7 @@ async function main() {
         prizeValueCent: 100,
         rank: 3,
         steps: wTop3[2].steps,
+        assignedAgentId: 1,
         status: PrizeClaimStatus.PENDING,
       },
     });
@@ -208,6 +220,10 @@ async function main() {
       });
     }
   }
+
+
+
+
 
   console.log('Seed done.');
 }
