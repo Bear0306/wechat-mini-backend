@@ -112,6 +112,18 @@ export async function getClaimDetail(
       select: { prizeValueCent: true },
     });
     prizeValueCent = prizeRule?.prizeValueCent ?? null;
+    // Save to contestPrizeClaim.prizeValueCent if needed
+    if (prizeValueCent !== null && claim.prizeValueCent !== prizeValueCent) {
+      await prisma.contestPrizeClaim.update({
+        where: { id: claim.id },
+        data: { prizeValueCent }
+      });
+      // also update the claim reference in this local context
+      claim.prizeValueCent = prizeValueCent;
+    }
+  } else {
+    // If no rank, still set to null so it's correct in return
+    prizeValueCent = claim.prizeValueCent ?? null;
   }
 
   const stateHint = (() => {
