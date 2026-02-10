@@ -48,8 +48,12 @@ export async function getClaimByContest(contestId: number, uid: number) {
   return claim ? { claimId: claim.id } : { claimId: null };
 }
 
-export async function getClaimDetail(uid: number, opts: { claimId?: number; contestId?: number }) {
-  let claim: Awaited<ReturnType<typeof prisma.contestPrizeClaim.findUnique>> & { contest?: { title: string } } | null = null;
+export async function getClaimDetail(
+  uid: number,
+  opts: { claimId?: number; contestId?: number }
+) {
+  let claim: (Awaited<ReturnType<typeof prisma.contestPrizeClaim.findUnique>> & { contest?: { title: string } }) | null = null;
+
   if (opts.claimId) {
     claim = await prisma.contestPrizeClaim.findUnique({
       where: { id: opts.claimId },
@@ -63,10 +67,53 @@ export async function getClaimDetail(uid: number, opts: { claimId?: number; cont
   }
   if (!claim || claim.userId !== uid) return null;
 
-  const csAgents = await prisma.serviceAgent.findMany({ where: { isActive: true } });
-  const csWeChatIds = csAgents.map((agent) => agent.wechatId);
-  const csWeChatId = csWeChatIds[Math.floor(Math.random() * csWeChatIds.length)];
-  
+  // Determine csWeChatId 
+  let csWeChatId: string | null = "";
+  let assignedAgentId = claim.assignedAgentId || null;
+
+  if (assignedAgentId) {
+    const agent = await prisma.serviceAgent.findUnique({
+      where: { id: assignedAgentId },
+      select: { wechatId: true },
+    });
+    csWeChatId = agent?.wechatId ?? "";
+  }
+
+  // If no assigned agent or csWeChatId missing, pick one randomly and set on claim row if absent
+  if (!assignedAgentId || !csWeChatId) {
+    // Pick random active service agent
+    const csAgents = await prisma.serviceAgent.findMany({ where: { isActive: true } });
+    if (csAgents.length === 0) {
+      csWeChatId = "";
+    } else {
+      const randomIdx = Math.floor(Math.random() * csAgents.length);
+      const randomAgent = csAgents[randomIdx];
+      csWeChatId = randomAgent.wechatId;
+      // Update the claim row if assignedAgentId not already present
+      if (!assignedAgentId) {
+        await prisma.contestPrizeClaim.update({
+          where: { id: claim.id },
+          data: { assignedAgentId: randomAgent.id }
+        });
+        assignedAgentId = randomAgent.id;
+      }
+    }
+  }
+
+  // Fetch prizeValueCent from ContestPrizeRule matching claim.contestId and claim.rank
+  let prizeValueCent: number | null = null;
+  if (claim.rank != null) {
+    const prizeRule = await prisma.contestPrizeRule.findFirst({
+      where: {
+        contestId: claim.contestId,
+        rankStart: { lte: claim.rank },
+        rankEnd: { gte: claim.rank },
+      },
+      select: { prizeValueCent: true },
+    });
+    prizeValueCent = prizeRule?.prizeValueCent ?? null;
+  }
+
   const stateHint = (() => {
     switch (claim.status) {
       case PrizeClaimStatus.PENDING: return '已提交';
@@ -82,8 +129,8 @@ export async function getClaimDetail(uid: number, opts: { claimId?: number; cont
     title: claim.contest?.title,
     rank: claim.rank,
     status: claim.status,
-    imageUrl: '',
-    csWeChatId,
+    csWeChatId: csWeChatId ?? "",
     stateHint,
+    prizeValueCent,
   };
 }
