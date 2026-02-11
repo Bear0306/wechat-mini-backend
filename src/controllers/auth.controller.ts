@@ -59,6 +59,7 @@ export async function adminLogin(req: Request, res: Response) {
   }
   try {
     const clientIp = getClientIp(req);
+    console.log(`IP ${clientIp} tried to connect to admin dashboard.`);
     const result = await AdminAuthService.adminLogin(username, password, clientIp);
     if ('status' in result && typeof result.status === 'number') {
       return res.status(result.status).json({ error: result.error });

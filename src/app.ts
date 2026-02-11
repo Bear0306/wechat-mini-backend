@@ -91,6 +91,11 @@ const adminFrontendDir = path.join(__dirname, '../public/admin');
 // Serve the built React admin app and its assets under /admin.
 app.use('/', express.static(adminFrontendDir));
 
+// If "/login" is requested, redirect to "/"
+app.get('/login', (req, res) => {
+  res.redirect('/');
+});
+
 // For the main admin entry URL, return index.html so the React app can boot.
 app.get('/', (req, res) => {
   console.log('Serving admin index for', req.path);
