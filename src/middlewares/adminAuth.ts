@@ -81,9 +81,16 @@ export async function adminAuth(req: Request, res: Response, next: NextFunction)
     }
 
     const clientIp = getClientIp(req);
+    const isDev = process.env.NODE_ENV !== 'production';
     // If an allowedIp is configured on the admin record, enforce it.
-    if (admin.allowedIp && clientIp && admin.allowedIp !== clientIp) {
-      return res.status(403).json({ error: "Admin IP not allowed", ip: clientIp });
+    // - In dev: allow 127.0.0.1 OR allowedIp
+    // - In prod: require exact match with allowedIp
+    if (admin.allowedIp && clientIp) {
+      if (isDev && clientIp === '127.0.0.1') {
+        // allowed in dev
+      } else if (admin.allowedIp !== clientIp) {
+        return res.status(403).json({ error: "Admin IP not allowed", ip: clientIp });
+      }
     }
 
     req.admin = { id: admin.id };

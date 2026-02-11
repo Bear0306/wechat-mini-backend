@@ -31,15 +31,18 @@ export async function adminLogin(username: string, password: string, clientIpRaw
     return { status: 401 as const, error: 'Invalid admin credentials' };
   }
 
-  // Enforce IP restriction at login time:
-  // - If admin.allowedIp is set
-  // - And we have a client IP
-  // - And they don't match after normalization
-  // => reject login before issuing any token.
   const clientIp = normalizeIp(clientIpRaw ?? null);
-  if (admin.allowedIp && clientIp && admin.allowedIp !== clientIp) {
-    await delay(150);
-    return { status: 403 as const, error: 'Admin IP not allowed' };
+  const isDev = process.env.NODE_ENV !== 'production';
+  // Enforce IP restriction at login time:
+  // - In dev: allow 127.0.0.1 OR allowedIp
+  // - In prod: require exact match with allowedIp
+  if (admin.allowedIp && clientIp) {
+    if (isDev && clientIp === '127.0.0.1') {
+      // allowed in dev
+    } else if (admin.allowedIp !== clientIp) {
+      await delay(150);
+      return { status: 403 as const, error: 'Admin IP not allowed' };
+    }
   }
 
   let storedName: string;
