@@ -23,14 +23,34 @@ const getBearer = (req: Request): string | null => {
   return token.trim();
 };
 
+/** Normalize IPv4‑in‑IPv6 format like ::ffff:127.0.0.1 */
+const normalizeIp = (ipRaw: string | undefined | null): string | null => {
+  if (!ipRaw) return null;
+  let ip = ipRaw;
+  if (ip.startsWith("::ffff:")) ip = ip.slice(7);
+  if (ip === "::1") ip = "127.0.0.1";
+  return ip;
+};
+
+/** Best‑effort client IP behind proxies (trust proxy must be enabled on app) */
+const getClientIp = (req: Request): string | null => {
+  const fwd = (req.headers["x-forwarded-for"] as string | string[] | undefined);
+  if (Array.isArray(fwd) ? fwd[0] : fwd) {
+    const first = Array.isArray(fwd) ? fwd[0] : fwd!;
+    return normalizeIp(first.split(",")[0].trim());
+  }
+  return normalizeIp(req.ip || (req.socket && req.socket.remoteAddress) || null);
+};
+
 /**
- * Middleware: require valid Admin JWT.
+ * Middleware: require valid Admin JWT **and** allowed IP.
  * - Verifies token using env.adminjwtSecret
  * - Reads adminId from payload, confirms admin exists & isActive
+ * - Checks that request IP matches admin.allowedIp (if set)
  * - Sets req.admin = { id }
  *
  * Use directly:
- *   app.use('/admin/contest', adminAuth, ...)
+ *   app.use('/api/admin/contest', adminAuth, ...)
  */
 export async function adminAuth(req: Request, res: Response, next: NextFunction) {
   const secret = env.adminjwtSecret as string;
@@ -58,6 +78,12 @@ export async function adminAuth(req: Request, res: Response, next: NextFunction)
     const admin = await prisma.admin.findUnique({ where: { id: adminId as number } });
     if (!admin || !admin.isActive) {
       return res.status(403).json({ error: "Admin not found or inactive" });
+    }
+
+    const clientIp = getClientIp(req);
+    // If an allowedIp is configured on the admin record, enforce it.
+    if (admin.allowedIp && clientIp && admin.allowedIp !== clientIp) {
+      return res.status(403).json({ error: "Admin IP not allowed", ip: clientIp });
     }
 
     req.admin = { id: admin.id };
