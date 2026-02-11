@@ -1,3 +1,54 @@
+# WeChat Mini Backend
+
+Node.js + Express + Prisma backend for the WeChat mini program and admin panel.
+
+## 0. 服务拓扑 / Service Topology
+
+- **Backend API**  
+  - Base: `http://127.0.0.1:8080`  
+  - User APIs under: `http://127.0.0.1:8080/api/user/*`  
+  - Admin APIs under: `http://127.0.0.1:8080/api/admin/*`
+
+- **Admin frontend (`wechat-mini-admin`)**  
+  - Built React app is served **by this backend** under:  
+    - URL: `http://127.0.0.1:8080/admin`  
+  - Static files live in `public/admin` inside this project.
+
+- **WeChat mini program (`wechat-mini-app`)**  
+  - Talks to this backend via `http://127.0.0.1:8080/api/user/*` in develop mode.  
+  - See its own `README.md` for WeChat DevTools setup.
+
+### 本地一体化启动 / Local All‑in‑One Setup
+
+1. **Build admin frontend into backend public folder**
+
+   在 `wechat-mini-admin` 目录：
+
+   ```bash
+   npm install        # 第一次需要
+   npm run build      # 输出到 ../wechat-mini-backend/public/admin
+   ```
+
+2. **Build & start backend (serves API + /admin)**
+
+   在 `wechat-mini-backend` 目录：
+
+   ```bash
+   npm install        # 第一次需要
+   npm run build
+   npm start
+   ```
+
+3. **访问 / Visit**
+
+   - Admin UI: `http://127.0.0.1:8080/admin`  
+   - User APIs: `http://127.0.0.1:8080/api/user/...`  
+   - Admin APIs: `http://127.0.0.1:8080/api/admin/...`
+
+> 开发阶段也可以分别运行：`wechat-mini-backend` 的 `npm run dev` + `wechat-mini-admin` 的 `npm run dev`，此时 admin 走 Vite dev server（默认端口 3000），通过代理把 `/api` 请求转发到后端。
+
+---
+
 # 1. Prisma Schema 设计文档
 ## 概览 / Overview
 - **数据库**：PostgreSQL  

@@ -2,6 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
+import path from 'path';
 import { env } from './env';
 
 import authRoutes from './routes/user/auth.routes';
@@ -37,7 +38,20 @@ const app = express();
 // Ensure correct client IP detection behind reverse proxies
 app.set('trust proxy', true);
 
-app.use(helmet());
+// app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        connectSrc: ["'self'"],
+      },
+    },
+  })
+);
 app.use(cors());
 app.use(express.json());
 app.use(morgan('tiny'));
@@ -68,6 +82,20 @@ app.use('/api/admin/user', adminAuth, adminUserRoutes);
 app.use('/api/admin/leaderboard', adminAuth, adminLeaderboardRoutes);
 app.use('/api/admin/service-agent', adminAuth, adminServiceAgentRoutes);
 app.use('/api/admin/region', adminAuth, adminRegionRoutes);
+
+// -------- ADMIN FRONTEND: serve built React app from /admin --------
+// At runtime, this resolves to <project-root>/public/admin
+// (because compiled app.js lives in dist/, and dist/../public/admin => public/admin).
+const adminFrontendDir = path.join(__dirname, '../public/admin');
+
+// Serve the built React admin app and its assets under /admin.
+app.use('/', express.static(adminFrontendDir));
+
+// For the main admin entry URL, return index.html so the React app can boot.
+app.get('/', (req, res) => {
+  console.log('Serving admin index for', req.path);
+  res.sendFile(path.join(adminFrontendDir, 'index.html'));
+});
 
 app.listen(env.port, () => console.log('Backend running at http://localhost:' + env.port));
 
