@@ -11,9 +11,21 @@ export async function getUserStepsList(userId: number) {
 }
 
 export async function upsertUserStepsList(userId: number, stepInfoList: Array<{ timestamp: number; step: number }>) {
-  prisma.userSteps.upsert({
+  // First try to find if there's a row for this userId
+  const existing = await prisma.userSteps.findUnique({
     where: { userId },
-    update: { stepInfoList: JSON.stringify(stepInfoList) },
-    create: { userId, stepInfoList: JSON.stringify(stepInfoList) },
-  })
+  });
+
+  if (existing) {
+    // If a row exists, update it
+    await prisma.userSteps.update({
+      where: { userId },
+      data: { stepInfoList: JSON.stringify(stepInfoList) },
+    });
+  } else {
+    // If no row exists, create a new one
+    await prisma.userSteps.create({
+      data: { userId, stepInfoList: JSON.stringify(stepInfoList) },
+    });
+  }
 }

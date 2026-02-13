@@ -155,7 +155,7 @@ export async function uploadSteps(params: {
   }
 
   if (stepInfoList.length) {
-    await UserStepsModel.upsertUserStepsList(userId, stepInfoList);
+    await upsertUserSteps(userId, stepInfoList);
   }
 
   return {
