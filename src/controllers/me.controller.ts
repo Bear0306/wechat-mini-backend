@@ -7,6 +7,13 @@ export async function getInfo(req: Request, res: Response) {
   res.json(data);
 }
 
+export async function updateProfile(req: Request, res: Response) {
+  const uid = req.user!.id;
+  const userInfo = req.body;
+  const data = await UserService.updateProfile(uid, userInfo.nickName, userInfo.avatarUrl);
+  res.json(data);
+}
+
 export async function fetchCount(req: Request, res: Response) {
   const uid = req.user!.id;
   const data = await UserService.getUserCount(uid);

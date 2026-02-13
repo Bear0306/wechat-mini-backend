@@ -61,9 +61,9 @@ export async function getLeaderboardPage(
     return {
       rank: skip + i + 1,
       userId: e.userId,
-      name: e.user.wechatNick || `用户${e.user.id}`,
-      steps: e.steps,
-      avatar: e.user.avatarUrl,
+      name: e.user.wechatNick || ``,
+      avatar: e.user.avatarUrl || '',
+      steps: e.steps
     };
   });
 
@@ -101,8 +101,8 @@ export async function getMyRank(
   return {
     rank: idx + 1,
     steps: me.steps || 0,
-    name: me.user.wechatNick || '我',
-    avatar: me.user.avatarUrl,
+    name: me.user.wechatNick || '',
+    avatar: me.user.avatarUrl || '',
   };
 }
 
@@ -153,9 +153,9 @@ export async function getSnapshot(
     const tail5: RankRow[] = tail5Raw.map((e: { userId: number; steps: number; user: { id: number; wechatNick: string | null; avatarUrl: string | null } }, i: number) => ({
       rank: baseRank + i,
       userId: e.userId,
-      name: e.user.wechatNick || `用户${e.user.id}`,
+      name: e.user.wechatNick || ``,
       steps: e.steps,
-      avatar: e.user.avatarUrl,
+      avatar: e.user.avatarUrl || '',
     }));
     return { myRank, mySteps, tail5 };
   }
@@ -242,9 +242,9 @@ function toRankRow(
   return {
     rank,
     userId: e.userId,
-    name: e.user.wechatNick || `用户${e.user.id}`,
+    name: e.user.wechatNick || ``,
     steps: e.steps,
-    avatar: e.user.avatarUrl,
+    avatar: e.user.avatarUrl || '',
   };
 }
 

@@ -25,12 +25,19 @@ export async function getUserByOpenId(openid: string) {
   return prisma.user.findUnique({ where: { openid } });
 }
 
+
+export async function updateUserProfile(uid: number, nickname: string, avatar: string) {
+  return prisma.user.update({
+    where: { id: uid },
+    data: { wechatNick: nickname, avatarUrl: avatar }
+  });
+}
+
 export async function upsertUserByOpenid(openid: string) {
   return prisma.user.upsert({
     where: { openid },
     create: {
       openid,
-      wechatNick: '新用户',
       ageGroup: AgeGroup.ADULT,
       canParticipate: true,
       canBuyMembership: true,
@@ -49,6 +56,7 @@ export function findUserBasic(uid: number) {
     select: {
       id: true,
       wechatNick: true,
+      avatarUrl: true,
       joinCount: true,
       prizeMultiplier: true,
     },

@@ -117,11 +117,16 @@ export async function getUserInfo(uid: number) {
 
   return {
     uid: user.id,
-    nickname: user.wechatNick || "我的昵称",
+    nickname: user.wechatNick || '',
+    avatar: user.avatarUrl || '',
     weekSteps,
     joinCount: user.joinCount,
     prizeMultiplier: user.prizeMultiplier,
   };
+}
+
+export async function updateProfile(uid: number, nickname: string, avatar: string) {
+  return UserModel.updateUserProfile(uid, nickname, avatar);
 }
 
 export async function getUserCount(uid: number) {

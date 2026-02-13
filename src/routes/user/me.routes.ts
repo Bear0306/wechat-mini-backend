@@ -4,6 +4,7 @@ import * as MeController from '../../controllers/me.controller';
 const router = Router();
 
 router.get("/getInfo", MeController.getInfo);
+router.post("/updateProfile", MeController.updateProfile);
 router.get("/fetchCount", MeController.fetchCount);
 router.post('/stepsUpload', MeController.stepsUpload);
 

@@ -35,9 +35,9 @@ export async function getContestRanking(contestId: number, topN = 10, tailCount 
     return {
       rank,
       userId: e.userId,
-      name: e.user.wechatNick || `用户${e.user.id}`,
+      name: e.user.wechatNick || ``,
       steps,
-      avatar: e.user.avatarUrl,
+      avatar: e.user.avatarUrl || '',
       abnormal: steps >= threshold,
     };
   };
