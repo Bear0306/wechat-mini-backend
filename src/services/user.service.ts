@@ -74,7 +74,7 @@ export async function upsertUserSteps( userId: number, newStepInfoList: StepInfo
 
   // Add steps to each contest
   const result = filteredRows.map(contest => {
-    const startTs = Math.floor(contest.startAt.getTime() / 1000);
+    const startTs = Math.floor(contest.startAt.getTime() / 1000) - 24 * 3600 + 1;
     const endTs = Math.floor(contest.endAt.getTime() / 1000);
     
     const totalSteps = filteredSteps
