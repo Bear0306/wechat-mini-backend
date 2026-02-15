@@ -38,6 +38,8 @@ export async function upsertUserByOpenid(openid: string) {
     where: { openid },
     create: {
       openid,
+      wechatNick: '运动达人',
+      avatarUrl: '/assets/my/default_avatar.png',
       ageGroup: AgeGroup.ADULT,
       canParticipate: true,
       canBuyMembership: true,

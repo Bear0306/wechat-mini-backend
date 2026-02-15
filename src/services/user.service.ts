@@ -5,6 +5,8 @@ import * as UserModel from '../models/user.model';
 import * as UserStepsModel from '../models/usersteps.model';
 import * as ContestModel from '../models/contest.model';
 import * as ContestentryModel from '../models/contestentry.model';
+import path from 'path';
+import * as fs from 'fs/promises';
 
 type StepInfo = {
   timestamp: number
@@ -163,4 +165,15 @@ export async function uploadSteps(params: {
       stepInfoList: data.stepInfoList ?? [],
     },
   };
+}
+
+
+const avatarDir = path.join(__dirname, '..', '..', 'public', 'avatars');
+
+export async function saveAvatar(userId: number, file: any) {
+  // Ensure the avatar directory exists
+  await fs.mkdir(avatarDir, { recursive: true });
+  const avatarPath = path.join(avatarDir, `${userId}.jpg`);
+  await fs.writeFile(avatarPath, file.buffer);
+  return `/avatars/${userId}.jpg`;
 }

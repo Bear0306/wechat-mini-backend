@@ -102,6 +102,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(adminFrontendDir, 'index.html'));
 });
 
+app.use('/avatars', express.static('public/avatars'))
+
 app.listen(env.port, () => console.log('Backend running at http://localhost:' + env.port));
 
 export default app;
