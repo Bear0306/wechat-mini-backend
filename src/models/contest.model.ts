@@ -16,7 +16,7 @@ export async function getUpcomingContestIds() {
 
 export async function getOngoingContestEntries() {
   const contests = await prisma.contest.findMany({
-    where: { status: 'ONGOING' },
+    where: { status: { in: ['ONGOING', 'FINALIZING'] } },
     select: {
       id: true,
       startAt: true,
